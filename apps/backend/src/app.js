@@ -12,6 +12,7 @@ app.use(express.urlencoded({ extended: true }));
 // Mount routes
 app.use('/v1/auth', require('./modules/auth/auth.routes'));
 app.use('/v1/users', require('./modules/user/user.routes'));
+app.use('/v1/patients', require('./modules/patient/patient.routes'));
 
 // Global error handler
 app.use((err, req, res, next) => {
