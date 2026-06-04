@@ -20,7 +20,7 @@ const getFinancialReport = async (req, res, next) => {
     const reportData = await reportService.getFinancialReport({ from, to });
 
     if (format === 'excel' || format === 'pdf') {
-      return sendSuccess(res, 200, reportData, { formatRequested: format, note: 'File generation not implemented in MVP.' });
+      return sendError(res, 501, 'NOT_IMPLEMENTED', `File export in ${format} format is not available in the MVP phase.`);
     }
 
     return sendSuccess(res, 200, reportData);
@@ -41,7 +41,7 @@ const getMedicalReport = async (req, res, next) => {
     const reportData = await reportService.getMedicalReport({ from, to });
 
     if (format === 'excel' || format === 'pdf') {
-      return sendSuccess(res, 200, reportData, { formatRequested: format, note: 'File generation not implemented in MVP.' });
+      return sendError(res, 501, 'NOT_IMPLEMENTED', `File export in ${format} format is not available in the MVP phase.`);
     }
 
     return sendSuccess(res, 200, reportData);

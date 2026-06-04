@@ -10,8 +10,8 @@ const router = express.Router();
 const querySchema = z.object({
   page: z.string().regex(/^\d+$/).optional(),
   limit: z.string().regex(/^\d+$/).optional(),
-  from: z.string().optional(),
-  to: z.string().optional(),
+  from: z.string().optional().refine(s => !s || !Number.isNaN(Date.parse(s)), { message: 'Invalid ISO date for "from"' }),
+  to: z.string().optional().refine(s => !s || !Number.isNaN(Date.parse(s)), { message: 'Invalid ISO date for "to"' }),
   action: z.string().optional(),
   userId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId').optional()
 });

@@ -14,6 +14,9 @@ cron.schedule('0 0 * * *', async () => {
       remainingAmount: { $gt: 0 }
     }).populate('patientId').lean();
 
+    // Fetch staff list ONCE (hoisted out of the loop)
+    const staff = await User.find({ role: { $in: ['director', 'receptionist'] } }).lean();
+
     const now = new Date();
     let count = 0;
 
@@ -22,19 +25,30 @@ cron.schedule('0 0 * * *', async () => {
       
       // J-1, J-3, J-7 logic
       if (daysSinceCreation === 1 || daysSinceCreation === 3 || daysSinceCreation === 7) {
-        // Find staff to notify (director or receptionist)
-        const staff = await User.find({ role: { $in: ['director', 'receptionist'] } }).lean();
-        
-        const notifications = staff.map(s => ({
-          userId: s._id,
-          type: 'payment_reminder',
-          title: 'Facture impayée',
-          body: `La facture #${invoice.invoiceNumber} pour ${invoice.patientId?.fullName || 'Patient inconnu'} est impayée depuis ${daysSinceCreation} jours. Montant restant : ${invoice.remainingAmount}.`,
-          data: { invoiceId: invoice._id }
+        // Build idempotent upserts keyed on (userId, type, data.invoiceId, data.daysSinceCreation)
+        const ops = staff.map(s => ({
+          updateOne: {
+            filter: {
+              userId: s._id,
+              type: 'payment_reminder',
+              'data.invoiceId': invoice._id,
+              'data.daysSinceCreation': daysSinceCreation
+            },
+            update: {
+              $setOnInsert: {
+                userId: s._id,
+                type: 'payment_reminder',
+                title: 'Facture impayée',
+                body: `La facture #${invoice.invoiceNumber} pour ${invoice.patientId?.fullName || 'Patient inconnu'} est impayée depuis ${daysSinceCreation} jours. Montant restant : ${invoice.remainingAmount}.`,
+                data: { invoiceId: invoice._id, daysSinceCreation }
+              }
+            },
+            upsert: true
+          }
         }));
         
-        if (notifications.length > 0) {
-          await Notification.insertMany(notifications);
+        if (ops.length > 0) {
+          await Notification.bulkWrite(ops);
           count++;
         }
       }

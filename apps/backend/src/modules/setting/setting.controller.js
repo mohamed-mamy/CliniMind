@@ -1,19 +1,34 @@
 const Setting = require('./setting.model');
 const { updateSettingSchema } = require('./setting.validation');
 
+// Fixed key for singleton pattern
+const SINGLETON_FILTER = {};
+
+/**
+ * Sanitize settings to redact any sensitive fields before sending to client.
+ */
+const sanitizeSettings = (settings) => {
+  const sanitized = { ...settings };
+  // Redact any leftover SMTP secrets (defensive — they should not be in DB)
+  if (sanitized.smtpConfig) {
+    const { user, pass, ...safeSmtp } = sanitized.smtpConfig;
+    sanitized.smtpConfig = safeSmtp;
+  }
+  return sanitized;
+};
+
 // GET /settings
 const getSettings = async (req, res, next) => {
   try {
-    let settings = await Setting.findOne().lean();
-    if (!settings) {
-      // Create default settings if none exist
-      const newSettings = new Setting({});
-      await newSettings.save();
-      settings = newSettings.toObject();
-    }
+    // Atomic upsert to guarantee singleton
+    let settings = await Setting.findOneAndUpdate(
+      SINGLETON_FILTER,
+      { $setOnInsert: {} },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    ).lean();
 
     // Role-based access:
-    // Director: full settings
+    // Director: full settings (sanitized)
     // Others: public settings only
     if (req.user.role !== 'director') {
       const publicSettings = {
@@ -34,7 +49,7 @@ const getSettings = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      data: settings,
+      data: sanitizeSettings(settings),
       error: null,
       meta: null
     });
@@ -48,14 +63,14 @@ const updateSettings = async (req, res, next) => {
   try {
     const validatedData = updateSettingSchema.parse(req.body);
 
-    const currentSettings = await Setting.findOne().lean();
+    const currentSettings = await Setting.findOne(SINGLETON_FILTER).lean();
     const oldFee = currentSettings ? currentSettings.defaultConsultationFee : null;
     const newFee = validatedData.defaultConsultationFee;
 
     const settings = await Setting.findOneAndUpdate(
-      {}, 
+      SINGLETON_FILTER, 
       { $set: validatedData },
-      { new: true, upsert: true }
+      { new: true, upsert: true, setDefaultsOnInsert: true }
     ).lean();
 
     if (newFee !== undefined && oldFee !== newFee) {
@@ -73,7 +88,7 @@ const updateSettings = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      data: settings,
+      data: sanitizeSettings(settings),
       error: null,
       meta: null
     });

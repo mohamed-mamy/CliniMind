@@ -11,40 +11,56 @@ if (!fs.existsSync(BACKUP_DIR)) {
 }
 
 /**
- * Execute the backup process
+ * Execute the backup process using streaming to avoid loading entire DB into memory.
  */
 const runBackup = async () => {
   try {
     console.log('[Cron] Starting database backup...');
     
-    // 1. Gather all collections data
-    const backupData = {
-      timestamp: new Date().toISOString(),
-      database: mongoose.connection.name || 'clinimind',
-      collections: {}
-    };
+    const timestampStr = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `backup-${timestampStr}.ndjson.gz`;
+    const localPath = path.join(BACKUP_DIR, filename);
 
+    // Create a gzip write stream
+    const gzipStream = zlib.createGzip();
+    const writeStream = fs.createWriteStream(localPath);
+    gzipStream.pipe(writeStream);
+
+    // Write metadata header
+    const metadata = {
+      _type: 'backup_metadata',
+      timestamp: new Date().toISOString(),
+      database: mongoose.connection.name || 'clinimind'
+    };
+    gzipStream.write(JSON.stringify(metadata) + '\n');
+
+    // Stream each collection as NDJSON
     const modelNames = mongoose.modelNames();
     for (const modelName of modelNames) {
       const Model = mongoose.model(modelName);
-      const records = await Model.find({}).lean();
-      backupData.collections[modelName] = records;
+      const cursor = Model.find({}).cursor();
+
+      for await (const doc of cursor) {
+        const record = {
+          _collection: modelName,
+          ...doc.toObject()
+        };
+        gzipStream.write(JSON.stringify(record) + '\n');
+      }
     }
 
-    // 2. Compress backup content to gzip
-    const jsonString = JSON.stringify(backupData, null, 2);
-    const gzippedBuffer = zlib.gzipSync(jsonString);
+    // Finalize the gzip stream
+    await new Promise((resolve, reject) => {
+      gzipStream.end(() => {
+        writeStream.on('finish', resolve);
+        writeStream.on('error', reject);
+      });
+    });
 
-    // 3. Save backup file locally
-    const timestampStr = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `backup-${timestampStr}.json.gz`;
-    const localPath = path.join(BACKUP_DIR, filename);
-    
-    fs.writeFileSync(localPath, gzippedBuffer);
     console.log(`[Cron] Database backup saved locally at ${localPath}`);
 
-    // 4. Cloudinary upload sync (if CLOUDINARY_URL is configured)
-    if (process.env.CLOUDINARY_URL) {
+    // Cloudinary upload (opt-in only via ALLOW_CLOUD_BACKUP)
+    if (process.env.CLOUDINARY_URL && process.env.ALLOW_CLOUD_BACKUP === 'true') {
       try {
         console.log('[Cron] Uploading backup to Cloudinary...');
         
@@ -55,13 +71,16 @@ const runBackup = async () => {
         await cloudinary.uploader.upload(localPath, {
           resource_type: 'raw',
           folder: 'clinimind_backups',
-          public_id: filename
+          public_id: filename,
+          tags: ['backup', 'automated']
         });
         
         console.log('[Cron] Database backup synced to Cloudinary successfully.');
       } catch (cloudErr) {
         console.error('[Cron Error] Cloudinary backup sync failed:', cloudErr.message);
       }
+    } else if (process.env.CLOUDINARY_URL && process.env.ALLOW_CLOUD_BACKUP !== 'true') {
+      console.log('[Cron] Cloudinary sync skipped (ALLOW_CLOUD_BACKUP not enabled).');
     } else {
       console.log('[Cron] Cloudinary sync skipped (CLOUDINARY_URL not configured).');
     }

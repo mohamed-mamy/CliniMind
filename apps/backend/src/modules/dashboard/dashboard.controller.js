@@ -10,6 +10,17 @@ const startOfDay = () => {
   d.setHours(0,0,0,0);
   return d;
 };
+const endOfDay = () => {
+  const d = new Date();
+  d.setHours(23,59,59,999);
+  return d;
+};
+const startOfWeek = () => {
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() - d.getDay()); // Sunday as start of week
+  return d;
+};
 const startOfMonth = () => {
   const d = new Date();
   d.setDate(1);
@@ -20,6 +31,7 @@ const startOfMonth = () => {
 const getDirectorDashboard = async (req, res, next) => {
   try {
     const today = startOfDay();
+    const tomorrow = endOfDay();
     const month = startOfMonth();
 
     const [
@@ -32,7 +44,7 @@ const getDirectorDashboard = async (req, res, next) => {
       recentAppointments,
       recentExpenses
     ] = await Promise.all([
-      Appointment.find({ date: { $gte: today } }).lean(),
+      Appointment.find({ date: { $gte: today, $lt: tomorrow } }).lean(),
       Invoice.aggregate([
         { $match: { createdAt: { $gte: month } } }, 
         { $group: { _id: null, total: { $sum: '$totalAmount' }, unpaid: { $sum: '$remainingAmount' } } }
@@ -43,7 +55,7 @@ const getDirectorDashboard = async (req, res, next) => {
       ]),
       Appointment.countDocuments({ status: 'scheduled' }),
       Patient.countDocuments(),
-      Notification.countDocuments({ userId: req.user._id, isRead: false }),
+      Notification.countDocuments({ userId: req.user.userId, isRead: false }),
       Appointment.find().sort({ createdAt: -1 }).limit(5).lean(),
       Expense.find().sort({ createdAt: -1 }).limit(5).lean()
     ]);
@@ -51,7 +63,7 @@ const getDirectorDashboard = async (req, res, next) => {
     // To calculate todayRevenue accurately we would need to sum invoices created today that are paid,
     // but we will use a basic aggregate placeholder here.
     const todayInvoices = await Invoice.aggregate([
-      { $match: { createdAt: { $gte: today } } },
+      { $match: { createdAt: { $gte: today, $lt: tomorrow } } },
       { $group: { _id: null, total: { $sum: '$paidAmount' } } }
     ]);
 
@@ -84,18 +96,20 @@ const getDirectorDashboard = async (req, res, next) => {
 const getDoctorDashboard = async (req, res, next) => {
   try {
     const today = startOfDay();
+    const tomorrow = endOfDay();
+    const week = startOfWeek();
     
     res.status(200).json({
       success: true,
       data: {
         stats: {
-          todayAppointments: await Appointment.countDocuments({ doctorId: req.user._id, date: { $gte: today } }),
-          todayCompleted: await Appointment.countDocuments({ doctorId: req.user._id, date: { $gte: today }, status: 'completed' }),
-          weekAppointments: await Appointment.countDocuments({ doctorId: req.user._id, date: { $gte: startOfMonth() } }), // Using month as proxy for now
-          pendingLabResults: await LabRequest.countDocuments({ doctorId: req.user._id, status: 'pending' }),
-          unreadNotifications: await Notification.countDocuments({ userId: req.user._id, isRead: false })
+          todayAppointments: await Appointment.countDocuments({ doctorId: req.user.userId, date: { $gte: today, $lt: tomorrow } }),
+          todayCompleted: await Appointment.countDocuments({ doctorId: req.user.userId, date: { $gte: today, $lt: tomorrow }, status: 'completed' }),
+          weekAppointments: await Appointment.countDocuments({ doctorId: req.user.userId, date: { $gte: week } }),
+          pendingLabResults: await LabRequest.countDocuments({ doctorId: req.user.userId, status: 'pending' }),
+          unreadNotifications: await Notification.countDocuments({ userId: req.user.userId, isRead: false })
         },
-        todayAgenda: await Appointment.find({ doctorId: req.user._id, date: { $gte: today } }).lean(),
+        todayAgenda: await Appointment.find({ doctorId: req.user.userId, date: { $gte: today, $lt: tomorrow } }).lean(),
         criticalResults: [], // Can query LabResult here when integrated
         recentPatients: []
       },
@@ -110,9 +124,10 @@ const getDoctorDashboard = async (req, res, next) => {
 const getReceptionistDashboard = async (req, res, next) => {
   try {
     const today = startOfDay();
+    const tomorrow = endOfDay();
     
     const todayInvoices = await Invoice.aggregate([
-      { $match: { createdAt: { $gte: today } } },
+      { $match: { createdAt: { $gte: today, $lt: tomorrow } } },
       { $group: { _id: null, total: { $sum: '$paidAmount' } } }
     ]);
 
@@ -120,12 +135,12 @@ const getReceptionistDashboard = async (req, res, next) => {
       success: true,
       data: {
         stats: {
-          todayAppointments: await Appointment.countDocuments({ date: { $gte: today } }),
-          todayCheckedIn: await Appointment.countDocuments({ date: { $gte: today }, status: { $in: ['confirmed', 'completed'] } }),
+          todayAppointments: await Appointment.countDocuments({ date: { $gte: today, $lt: tomorrow } }),
+          todayCheckedIn: await Appointment.countDocuments({ date: { $gte: today, $lt: tomorrow }, status: { $in: ['confirmed', 'completed'] } }),
           todayRevenue: todayInvoices[0]?.total || 0,
-          waitingRoomCount: await Appointment.countDocuments({ date: { $gte: today }, status: 'confirmed' })
+          waitingRoomCount: await Appointment.countDocuments({ date: { $gte: today, $lt: tomorrow }, status: 'confirmed' })
         },
-        todayAgenda: await Appointment.find({ date: { $gte: today } }).lean(),
+        todayAgenda: await Appointment.find({ date: { $gte: today, $lt: tomorrow } }).lean(),
         recentInvoices: await Invoice.find().sort({ createdAt: -1 }).limit(5).lean()
       },
       error: null,

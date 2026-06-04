@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Prescription = require('./prescription.model');
 const PrescriptionDrug = require('./prescriptionDrug.model');
+const Patient = require('../patient/patient.model');
 
 /**
  * Create a new prescription
@@ -10,6 +11,15 @@ const createPrescription = async (data, doctorId) => {
   session.startTransaction();
   
   try {
+    // Verify the referenced patient exists (inside the transaction)
+    const patient = await Patient.findById(data.patientId, null, { session });
+    if (!patient) {
+      const error = new Error('Patient not found');
+      error.status = 404;
+      error.code = 'NOT_FOUND';
+      throw error;
+    }
+
     const prescription = new Prescription({
       patientId: data.patientId,
       doctorId,

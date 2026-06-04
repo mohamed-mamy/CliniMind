@@ -9,9 +9,8 @@ const settingSchema = new mongoose.Schema({
   defaultConsultationFee: { type: Number, required: true, default: 500 },
   smtpConfig: {
     host: { type: String, default: 'smtp.gmail.com' },
-    port: { type: Number, default: 587 },
-    user: { type: String, default: '' },
-    pass: { type: String, default: '' }
+    port: { type: Number, default: 587 }
+    // user and pass removed — read from SMTP_USER / SMTP_PASS env vars at send time
   },
   criticalThresholds: {
     type: Map,

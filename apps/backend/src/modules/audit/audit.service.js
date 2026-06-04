@@ -56,7 +56,7 @@ const listLogs = async (query) => {
       oldValues: log.oldValues || undefined,
       newValues: log.newValues || undefined,
       ipAddress: log.ipAddress || '',
-      timestamp: log.timestamp ? log.timestamp.toISOString() : new Date().toISOString()
+      timestamp: log.timestamp ? log.timestamp.toISOString() : null
     };
   });
 

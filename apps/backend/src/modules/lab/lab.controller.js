@@ -25,7 +25,8 @@ const listLabRequests = async (req, res, next) => {
 const getPendingLabRequests = async (req, res, next) => {
   try {
     // Simplified view for pending
-    const query = { status: 'pending', ...req.query };
+    // Spread query first, then override status so callers cannot bypass the pending filter
+    const query = { ...req.query, status: 'pending' };
     const { data, meta } = await labService.listLabRequests(query, req.user.role, req.user.userId);
     return sendSuccess(res, 200, data, meta);
   } catch (error) {
@@ -69,7 +70,7 @@ const enterLabResults = async (req, res, next) => {
 const getCriticalResults = async (req, res, next) => {
   try {
     const { from } = req.query;
-    const results = await labService.getCriticalResults(from);
+    const results = await labService.getCriticalResults(from, req.user.role, req.user.userId);
     return sendSuccess(res, 200, results);
   } catch (error) {
     next(error);

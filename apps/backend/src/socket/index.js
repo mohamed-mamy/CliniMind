@@ -4,9 +4,14 @@ const jwt = require('jsonwebtoken');
 let io;
 
 const initSocket = (server) => {
+  // Parse allowed origins from env (comma-separated) or default to localhost in dev
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+    : ['http://localhost:3000', 'http://localhost:5173'];
+
   io = new Server(server, {
     cors: {
-      origin: '*', // Adjust for production based on infra-plan
+      origin: allowedOrigins,
       methods: ['GET', 'POST']
     }
   });
@@ -18,8 +23,13 @@ const initSocket = (server) => {
       if (!token) {
         return next(new Error('Authentication error'));
       }
+
+      if (!process.env.JWT_SECRET) {
+        console.error('[Socket] JWT_SECRET is not set. Rejecting connection.');
+        return next(new Error('Server configuration error'));
+      }
       
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
       socket.user = decoded; // { id, role, ... } depending on JWT payload structure
       next();
     } catch (err) {

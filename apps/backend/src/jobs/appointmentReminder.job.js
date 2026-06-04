@@ -20,15 +20,29 @@ cron.schedule('0 9 * * *', async () => {
       status: 'scheduled'
     }).populate('patientId doctorId').lean();
 
+    let remindedCount = 0;
+
     for (const appt of appointments) {
-      // 1. Create in-app notification for the doctor
-      await Notification.create({
-        userId: appt.doctorId._id,
-        type: 'appointment_reminder',
-        title: 'Rappel de rendez-vous',
-        body: `Vous avez un rendez-vous avec ${appt.patientId.fullName} demain à ${appt.timeSlot}.`,
-        data: { appointmentId: appt._id }
-      });
+      // Idempotent upsert: keyed on (userId, type, data.appointmentId) to prevent duplicates
+      const result = await Notification.findOneAndUpdate(
+        {
+          userId: appt.doctorId._id,
+          type: 'appointment_reminder',
+          'data.appointmentId': appt._id
+        },
+        {
+          $setOnInsert: {
+            userId: appt.doctorId._id,
+            type: 'appointment_reminder',
+            title: 'Rappel de rendez-vous',
+            body: `Vous avez un rendez-vous avec ${appt.patientId.fullName} demain à ${appt.timeSlot}.`,
+            data: { appointmentId: appt._id }
+          }
+        },
+        { upsert: true, new: true }
+      );
+
+      if (result) remindedCount++;
 
       // 2. Send email to patient (placeholder for email service)
       // if (appt.patientId.email) {
@@ -36,7 +50,7 @@ cron.schedule('0 9 * * *', async () => {
       // }
     }
     
-    console.log(`[Cron] appointmentReminder job completed. Reminded ${appointments.length} appointments.`);
+    console.log(`[Cron] appointmentReminder job completed. Processed ${appointments.length} appointments, reminded ${remindedCount}.`);
   } catch (error) {
     console.error('[Cron Error] appointmentReminder job failed:', error);
   }

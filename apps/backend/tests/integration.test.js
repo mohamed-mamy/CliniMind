@@ -46,9 +46,26 @@ const apiRequest = async (method, route, body = null, token = null) => {
   return { status: res.status, ...data };
 };
 
+/**
+ * Redact credentials from a MongoDB URI for safe logging.
+ */
+const redactUri = (uri) => {
+  try {
+    const url = new URL(uri);
+    if (url.username || url.password) {
+      url.username = '***';
+      url.password = '***';
+    }
+    return url.toString();
+  } catch {
+    return '(redacted)';
+  }
+};
+
 // Main test function
 async function runTests() {
   let server;
+  let exitCode = 0;
   try {
     // 1. Establish Database Connection (Safely targeting test db)
     const originalUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/clinimind';
@@ -56,7 +73,13 @@ async function runTests() {
       ? originalUri.replace(/\/clinimind(\?)/, '/clinimind_test$1')
       : originalUri.replace(/\/clinimind$/, '/clinimind_test');
 
-    console.log(`[Test] Connecting to MongoDB test database: ${testUri}`);
+    // Safety check: ensure we're actually using a test database
+    if (testUri === originalUri || !testUri.includes('_test')) {
+      console.error('[Test] FATAL: Test URI does not contain "_test" marker or equals original URI. Aborting to protect production data.');
+      process.exit(1);
+    }
+
+    console.log(`[Test] Connecting to MongoDB test database: ${redactUri(testUri)}`);
     await mongoose.connect(testUri);
     console.log('[Test] Connected.');
 
@@ -361,7 +384,7 @@ async function runTests() {
     console.error(' INTEGRATION TEST RUN FAILED! ');
     console.error('=======================================');
     console.error(err);
-    process.exit(1);
+    exitCode = 1;
   } finally {
     // 5. Clean up server and db connection
     if (server) {
@@ -371,7 +394,7 @@ async function runTests() {
     console.log('[Test] Disconnecting from database...');
     await mongoose.disconnect();
     console.log('[Test] Closed database connection.');
-    process.exit(0);
+    process.exit(exitCode);
   }
 }
 

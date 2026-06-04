@@ -2,9 +2,8 @@ const { z } = require('zod');
 
 const smtpConfigSchema = z.object({
   host: z.string().optional(),
-  port: z.number().int().optional(),
-  user: z.string().optional(),
-  pass: z.string().optional()
+  port: z.number().int().optional()
+  // user and pass removed — credentials sourced from env vars only
 });
 
 const updateSettingSchema = z.object({
@@ -19,6 +18,8 @@ const updateSettingSchema = z.object({
     min: z.number(),
     max: z.number(),
     unit: z.string()
+  }).refine(data => data.min <= data.max, {
+    message: 'min must be <= max'
   })).optional(),
   notificationTemplates: z.record(z.string()).optional()
 });

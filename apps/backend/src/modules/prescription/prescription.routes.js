@@ -1,7 +1,5 @@
 const express = require('express');
 const router = express.Router();
-console.log("PRESCRIPTION ROUTES LOADED!");
-
 const { validate } = require('../../middlewares/validate.middleware');
 const { requireAuth } = require('../../middlewares/auth.middleware');
 const { requireRoles } = require('../../middlewares/role.middleware');
@@ -10,7 +8,6 @@ const prescriptionController = require('./prescription.controller');
 const { createPrescriptionSchema } = require('./prescription.validation');
 
 // Auth is required for all prescription endpoints
-router.post('/test', (req, res) => res.json({ works: true }));
 router.use(requireAuth);
 
 // Create prescription: director, doctor

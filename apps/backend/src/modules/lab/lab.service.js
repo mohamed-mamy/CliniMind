@@ -3,12 +3,12 @@ const LabRequest = require('./labRequest.model');
 const Notification = require('../notification/notification.model');
 const { emitNewLabRequest, emitCriticalResult } = require('../../socket');
 
-// Mock Settings model since it might not be implemented yet (Phase 10)
+// Load Settings model with correct path
 let Settings;
 try {
-  Settings = require('../settings/settings.model');
+  Settings = require('../setting/setting.model');
 } catch (e) {
-  // Ignore
+  console.warn('[LabService] Settings model not available:', e.message);
 }
 
 const createLabRequest = async (data, doctorId) => {
@@ -77,6 +77,14 @@ const enterResults = async (id, data, technicianId) => {
     throw error;
   }
 
+  // Guard: reject edits on already-finalized requests
+  if (labRequest.status === 'completed') {
+    const error = new Error('Lab request is already finalized. Use an amendment flow to modify results.');
+    error.status = 409;
+    error.code = 'ALREADY_FINALIZED';
+    throw error;
+  }
+
   // Fetch thresholds if settings exist
   let thresholds = {};
   if (Settings) {
@@ -133,8 +141,14 @@ const enterResults = async (id, data, technicianId) => {
   };
 };
 
-const getCriticalResults = async (from) => {
+const getCriticalResults = async (from, callerRole, callerUserId) => {
   const filter = { isCritical: true };
+
+  // Scope to doctor's own patients when caller is a doctor
+  if (callerRole === 'doctor' && callerUserId) {
+    filter.doctorId = callerUserId;
+  }
+
   if (from) {
     filter.updatedAt = { $gte: new Date(from) };
   } else {

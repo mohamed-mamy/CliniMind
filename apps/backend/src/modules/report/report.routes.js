@@ -13,11 +13,17 @@ const querySchema = z.object({
   format: z.enum(['json', 'excel', 'pdf']).optional()
 });
 
+const exportQuerySchema = z.object({
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+  format: z.enum(['json', 'excel', 'pdf', 'zip']).optional()
+});
+
 router.use(requireAuth);
 router.use(requireRoles(['director']));
 
 router.get('/financial', validate(querySchema, 'query'), reportController.getFinancialReport);
 router.get('/medical', validate(querySchema, 'query'), reportController.getMedicalReport);
-router.get('/export', validate(querySchema, 'query'), reportController.exportReports);
+router.get('/export', validate(exportQuerySchema, 'query'), reportController.exportReports);
 
 module.exports = router;

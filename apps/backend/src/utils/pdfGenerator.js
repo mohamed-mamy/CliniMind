@@ -75,7 +75,7 @@ exports.createInvoicePdf = (invoice) => {
   doc.text('Reste à payer:', 350, y);
   doc.text(`${invoice.remainingAmount} MRU`, 450, y);
 
-  doc.end();
+  // NOTE: Caller must call doc.pipe(res) and then doc.end() after piping
   return doc;
 };
 
@@ -124,6 +124,6 @@ exports.createPrescriptionPdf = (prescription, patient) => {
   doc.moveDown(3);
   doc.text('Signature et Cachet', { align: 'right' });
 
-  doc.end();
+  // NOTE: Caller must call doc.pipe(res) and then doc.end() after piping
   return doc;
 };
