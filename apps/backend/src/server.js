@@ -31,7 +31,7 @@ mongoose.connect(MONGODB_URI)
     initSocket(server);
     
     server.listen(PORT, () => {
-      console.log("HELLO I AM THE REAL SERVER ON PORT", PORT);
+      console.log("Server running on port ", PORT);
       logger.info(`Server running on port ${PORT}`);
     });
   })
