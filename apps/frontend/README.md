@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CliniMind Frontend (React + Vite)
+
+Integrated presentation layer for CliniMind clinic management system, built using React 19, Vite, and Tailwind CSS v4.
+
+---
 
 ## Getting Started
 
-First, run the development server:
-
+### 1. Install Dependencies
+Run this command from inside the `apps/frontend` directory:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Start the Development Server
+Launch the Vite local development server:
+```bash
+npm run dev
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Open in Browser
+Open **[http://localhost:5173](http://localhost:5173)** in your browser.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Since you are not authenticated initially, the application will automatically route you to the **Login Page**.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Mock Login Credentials
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+To test different role-based views (RBAC), log in with the following usernames (passwords can be any combination of 4 or more characters, e.g., `1234`):
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Role | Username | Access Permissions |
+|---|---|---|
+| **Director / المدير** | `director` or `admin` | Full system access (Dashboard, Patients, Appointments, Laboratory, Billing, Expenses, Reports, Settings) |
+| **Doctor / الطبيب** | `doctor` | Clinical records access (Dashboard, Patients, Appointments, Laboratory) |
+| **Receptionist / الاستقبال** | `receptionist` | Front desk operational access (Dashboard, Patients, Appointments, Laboratory, Billing) |
+| **Lab Technician / المختبر** | `lab` or `technician` | Lab requests queue access (Laboratory only) |
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Build and Code Quality
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Validate TypeScript and compile the production build:
+```bash
+# Typecheck files
+npm run typecheck
+
+# Build bundle
+npm run build
+```
+The compiled SPA bundle will be outputted under the `dist/` directory.
+
