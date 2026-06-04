@@ -3,8 +3,8 @@ const Patient = require('./patient.model');
 const AuditLog = require('../audit/audit.model');
 
 class PatientService {
-  async createPatient(data) {
-    const patient = new Patient(data);
+  async createPatient(data, userId) {
+    const patient = new Patient({ ...data, createdBy: userId });
     await patient.save();
     return patient;
   }
@@ -58,7 +58,7 @@ class PatientService {
   }
 
   async updatePatient(id, data) {
-    const patient = await Patient.findByIdAndUpdate(id, { $set: data }, { new: true, runValidators: true });
+    const patient = await Patient.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after', runValidators: true });
     if (!patient) {
       const err = new Error('Patient not found');
       err.status = 404;
@@ -116,11 +116,9 @@ class PatientService {
       throw err;
     }
 
-    if (!patient.medicalHistory) {
-      patient.medicalHistory = {};
-    }
-
-    patient.medicalHistory = { ...patient.medicalHistory, ...data };
+    // Merge incoming data into the existing medical history subdocument
+    const currentHistory = patient.medicalHistory ? patient.medicalHistory.toObject() : {};
+    patient.medicalHistory = { ...currentHistory, ...data };
     await patient.save();
 
     await AuditLog.create({
@@ -128,10 +126,11 @@ class PatientService {
       action: 'UPDATE_MEDICAL_HISTORY',
       resourceType: 'Patient',
       resourceId: id,
-      details: data
+      oldValues: currentHistory,
+      newValues: data
     });
 
-    return patient.toObject();
+    return patient.medicalHistory.toObject();
   }
 
   async getMedicalHistory(id, role) {
@@ -150,7 +149,7 @@ class PatientService {
       throw err;
     }
 
-    return patient.medicalHistory || {};
+    return patient.medicalHistory ? patient.medicalHistory.toObject() : {};
   }
 }
 

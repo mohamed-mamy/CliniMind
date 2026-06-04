@@ -2,7 +2,7 @@ const patientService = require('./patient.service');
 
 exports.createPatient = async (req, res, next) => {
   try {
-    const patient = await patientService.createPatient(req.body);
+    const patient = await patientService.createPatient(req.body, req.user.userId);
     res.status(201).json({
       success: true,
       data: patient,
@@ -87,10 +87,10 @@ exports.getPatientHistory = async (req, res, next) => {
 
 exports.updateMedicalHistory = async (req, res, next) => {
   try {
-    const history = await patientService.updateMedicalHistory(req.params.id, req.body, req.user.id);
+    const medicalHistory = await patientService.updateMedicalHistory(req.params.id, req.body, req.user.userId);
     res.status(200).json({
       success: true,
-      data: history,
+      data: medicalHistory,
       error: null,
       meta: null
     });
@@ -101,10 +101,10 @@ exports.updateMedicalHistory = async (req, res, next) => {
 
 exports.getMedicalHistory = async (req, res, next) => {
   try {
-    const history = await patientService.getMedicalHistory(req.params.id, req.user.role);
+    const medicalHistory = await patientService.getMedicalHistory(req.params.id, req.user.role);
     res.status(200).json({
       success: true,
-      data: history,
+      data: medicalHistory,
       error: null,
       meta: null
     });

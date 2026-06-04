@@ -28,21 +28,21 @@ const patientSchema = new mongoose.Schema({
   phonePrimary: { type: String, required: true },
   phoneSecondary: { type: String },
   email: { type: String, lowercase: true, trim: true },
-  medicalHistory: { type: medicalHistorySchema, default: () => ({}) }
+  medicalHistory: { type: medicalHistorySchema, default: () => ({}) },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, {
   timestamps: true
 });
 
-patientSchema.pre('save', async function(next) {
+patientSchema.pre('save', async function() {
   if (this.isNew && !this.fileNumber) {
     const counter = await Counter.findByIdAndUpdate(
-      { _id: 'patientFileNumber' },
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true }
+      { _id: 'patientFile' },
+      { $inc: { sequenceValue: 1 } },
+      { returnDocument: 'after', upsert: true }
     );
-    this.fileNumber = counter.seq;
+    this.fileNumber = counter.sequenceValue;
   }
-  next();
 });
 
 patientSchema.index({ fullName: 1 });

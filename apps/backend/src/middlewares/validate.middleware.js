@@ -7,8 +7,9 @@ const validate = (schema) => (req, res, next) => {
   } catch (error) {
     if (error.name === 'ZodError') {
       const fields = {};
-      error.errors.forEach(err => {
-        fields[err.path.join('.')] = err.message;
+      const issues = error.issues || error.errors || [];
+      issues.forEach(issue => {
+        fields[issue.path.join('.')] = issue.message;
       });
       return sendError(res, 400, 'VALIDATION_ERROR', 'Body/query failed validation', fields);
     }
