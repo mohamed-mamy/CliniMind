@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const User = require('./user.model');
 const pino = require('pino');
 const logger = pino();
@@ -71,7 +72,15 @@ const getUserById = async (id) => {
   return user;
 };
 
-const updateUser = async (id, data) => {
+const updateUser = async (id, data, currentUser) => {
+  const originalUser = await User.findById(id);
+  if (!originalUser) {
+    const err = new Error('User not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+
   if (data.username) {
     const existing = await User.findOne({ username: data.username, _id: { $ne: id } });
     if (existing) {
@@ -82,14 +91,47 @@ const updateUser = async (id, data) => {
     }
   }
 
-  const user = await User.findByIdAndUpdate(id, data, { new: true, runValidators: true }).select('-password');
-  if (!user) {
-    const err = new Error('User not found');
-    err.status = 404;
-    err.code = 'NOT_FOUND';
+  // Block promotion to director via update path
+  if (data.role === 'director') {
+    const err = new Error('Cannot promote user to director via API');
+    err.status = 403;
+    err.code = 'FORBIDDEN';
     throw err;
   }
-  
+
+  const roleChanged = data.role && data.role !== originalUser.role;
+
+  if (roleChanged && currentUser) {
+    // Wrap role change + audit log in a transaction for atomicity
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const user = await User.findByIdAndUpdate(id, data, { new: true, runValidators: true, session }).select('-password');
+
+      const AuditLog = require('../audit/audit.model');
+      await AuditLog.create([{
+        userId: currentUser.userId,
+        action: 'change_role',
+        details: `Changed role of user ${user.username} from ${originalUser.role} to ${user.role}`,
+        oldValues: { role: originalUser.role },
+        newValues: { role: user.role },
+        resourceType: 'User',
+        resourceId: user._id
+      }], { session });
+
+      await session.commitTransaction();
+      session.endSession();
+      return user;
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
+    }
+  }
+
+  // Non-role-change update (no transaction needed)
+  const user = await User.findByIdAndUpdate(id, data, { new: true, runValidators: true }).select('-password');
   return user;
 };
 

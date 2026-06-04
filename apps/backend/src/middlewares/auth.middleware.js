@@ -20,4 +20,13 @@ const requireAuth = (req, res, next) => {
   }
 };
 
-module.exports = { requireAuth };
+const requireRole = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return sendError(res, 403, 'FORBIDDEN', 'Role lacks the required permission');
+    }
+    next();
+  };
+};
+
+module.exports = { requireAuth, requireRole };

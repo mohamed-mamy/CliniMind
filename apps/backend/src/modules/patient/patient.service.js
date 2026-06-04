@@ -68,26 +68,51 @@ class PatientService {
     return patient;
   }
 
-  async deletePatient(id) {
-    const hasAppointments = mongoose.models.Appointment ? await mongoose.model('Appointment').exists({ patientId: id }) : false;
-    const hasInvoices = mongoose.models.Invoice ? await mongoose.model('Invoice').exists({ patientId: id }) : false;
-    const hasLabRequests = mongoose.models.LabRequest ? await mongoose.model('LabRequest').exists({ patientId: id }) : false;
+  async deletePatient(id, userId) {
+    // Use a session/transaction for atomicity
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    if (hasAppointments || hasInvoices || hasLabRequests) {
-      const err = new Error('Patient has existing records and cannot be deleted');
-      err.status = 409;
-      err.code = 'INVALID_STATE';
-      throw err;
-    }
+    try {
+      const hasAppointments = mongoose.models.Appointment ? await mongoose.model('Appointment').exists({ patientId: id }).session(session) : false;
+      const hasInvoices = mongoose.models.Invoice ? await mongoose.model('Invoice').exists({ patientId: id }).session(session) : false;
+      const hasLabRequests = mongoose.models.LabRequest ? await mongoose.model('LabRequest').exists({ patientId: id }).session(session) : false;
 
-    const patient = await Patient.findByIdAndDelete(id);
-    if (!patient) {
-      const err = new Error('Patient not found');
-      err.status = 404;
-      err.code = 'NOT_FOUND';
-      throw err;
+      if (hasAppointments || hasInvoices || hasLabRequests) {
+        const err = new Error('Patient has existing records and cannot be deleted');
+        err.status = 409;
+        err.code = 'INVALID_STATE';
+        throw err;
+      }
+
+      const patient = await Patient.findByIdAndDelete(id, { session });
+      if (!patient) {
+        const err = new Error('Patient not found');
+        err.status = 404;
+        err.code = 'NOT_FOUND';
+        throw err;
+      }
+
+      if (userId) {
+        // Store only minimal, redacted snapshot — no full PHI in audit logs
+        await AuditLog.create([{
+          userId,
+          action: 'delete_patient',
+          details: `Deleted patient record (id: ${id})`,
+          oldValues: { _id: patient._id, fileNumber: patient.fileNumber, status: 'deleted' },
+          resourceType: 'Patient',
+          resourceId: id
+        }], { session });
+      }
+
+      await session.commitTransaction();
+      session.endSession();
+      return patient;
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
     }
-    return patient;
   }
 
   async getPatientHistory(id, role) {

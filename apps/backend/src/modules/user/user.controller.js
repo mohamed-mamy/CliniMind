@@ -32,7 +32,7 @@ const updateUser = async (req, res, next) => {
   try {
     // If password is changed, we should ideally hook into Auth to delete refresh tokens.
     // This will be handled implicitly or via the auth module directly in production.
-    const user = await userService.updateUser(req.params.id, req.body);
+    const user = await userService.updateUser(req.params.id, req.body, req.user);
     return sendSuccess(res, 200, user);
   } catch (err) {
     next(err);

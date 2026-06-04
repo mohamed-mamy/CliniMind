@@ -2,6 +2,8 @@ const Appointment = require('./appointment.model');
 const Patient = require('../patient/patient.model');
 const User = require('../user/user.model');
 const AuditLog = require('../audit/audit.model');
+const Notification = require('../notification/notification.model');
+const { emitNotification } = require('../../socket');
 
 class AppError extends Error {
   constructor(message, code, status) {
@@ -59,6 +61,22 @@ exports.createAppointment = async (data, currentUser) => {
     resourceType: 'Appointment',
     resourceId: appointment._id
   });
+
+  // Create notification for the doctor (best-effort — don't fail the appointment)
+  try {
+    const notification = await Notification.create({
+      userId: doctor._id,
+      type: 'new_appointment',
+      title: 'Nouveau rendez-vous',
+      body: `Un nouveau rendez-vous a été planifié avec ${patient.fullName} le ${appointment.date.toLocaleDateString()} à ${appointment.timeSlot}.`,
+      data: { appointmentId: appointment._id }
+    });
+    
+    // Emit real-time socket event
+    emitNotification(doctor._id, notification);
+  } catch (notifErr) {
+    console.error('[AppointmentService] Notification creation failed (non-fatal):', notifErr.message);
+  }
 
   // Populate names for DTO
   const result = await Appointment.findById(appointment._id)

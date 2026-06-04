@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/server.js",
+    "dev": "node src/server.js",
+    "test": "npm run test:integration",
+    "test:integration": "node tests/integration.test.js"
   },
   "keywords": [],
   "author": "",
@@ -15,10 +18,13 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "mongodb-memory-server": "^11.2.0",
     "mongoose": "^9.6.3",
+    "node-cron": "^4.2.1",
     "pdfkit": "^0.18.0",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
+    "socket.io": "^4.8.3",
     "zod": "^4.4.3"
   }
 }
