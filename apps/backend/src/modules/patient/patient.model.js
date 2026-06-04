@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const Counter = require('./counter.model');
+const Counter = require('../../models/counter.model');
 
 const allergySchema = new mongoose.Schema({
   type: { type: String, enum: ['medication', 'food', 'latex', 'other'], required: true },
