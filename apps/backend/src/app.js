@@ -13,6 +13,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/v1/auth', require('./modules/auth/auth.routes'));
 app.use('/v1/users', require('./modules/user/user.routes'));
 app.use('/v1/patients', require('./modules/patient/patient.routes'));
+app.use('/v1/appointments', require('./modules/appointment/appointment.routes'));
+app.use('/v1/invoices', require('./modules/billing/billing.routes'));
 
 // Global error handler
 app.use((err, req, res, next) => {
