@@ -1,8 +1,8 @@
 const { sendError } = require('../utils/apiResponse');
 
-const validate = (schema) => (req, res, next) => {
+const validate = (schema, source = 'body') => (req, res, next) => {
   try {
-    schema.parse(req.body);
+    schema.parse(req[source]);
     next();
   } catch (error) {
     if (error.name === 'ZodError') {

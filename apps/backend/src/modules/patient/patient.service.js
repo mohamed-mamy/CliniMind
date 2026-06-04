@@ -68,7 +68,7 @@ class PatientService {
     return patient;
   }
 
-  async deletePatient(id) {
+  async deletePatient(id, userId) {
     const hasAppointments = mongoose.models.Appointment ? await mongoose.model('Appointment').exists({ patientId: id }) : false;
     const hasInvoices = mongoose.models.Invoice ? await mongoose.model('Invoice').exists({ patientId: id }) : false;
     const hasLabRequests = mongoose.models.LabRequest ? await mongoose.model('LabRequest').exists({ patientId: id }) : false;
@@ -87,6 +87,18 @@ class PatientService {
       err.code = 'NOT_FOUND';
       throw err;
     }
+
+    if (userId) {
+      await AuditLog.create({
+        userId,
+        action: 'delete_patient',
+        details: `Deleted patient ${patient.fullName} (File: ${patient.fileNumber})`,
+        oldValues: patient.toObject(),
+        resourceType: 'Patient',
+        resourceId: id
+      });
+    }
+
     return patient;
   }
 

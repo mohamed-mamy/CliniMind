@@ -78,3 +78,52 @@ exports.createInvoicePdf = (invoice) => {
   doc.end();
   return doc;
 };
+
+/**
+ * Creates a PDF for a prescription
+ * @param {Object} prescription Prescription object with populated drugs
+ * @param {Object} patient Patient object
+ * @returns {PDFDocument} Readable stream
+ */
+exports.createPrescriptionPdf = (prescription, patient) => {
+  const doc = new PDFDocument({ margin: 50 });
+
+  // Add basic header
+  doc.fontSize(20).text('CliniMind Center', { align: 'center' });
+  doc.fontSize(12).text('Ordonnance Médicale', { align: 'center' });
+  doc.moveDown(2);
+
+  // Patient and Doctor Details
+  doc.fontSize(12).text(`Date: ${new Date(prescription.createdAt).toLocaleDateString()}`);
+  if (patient) {
+    doc.text(`Patient: ${patient.firstName} ${patient.lastName}`);
+  }
+  doc.moveDown();
+
+  if (prescription.notes) {
+    doc.text(`Notes: ${prescription.notes}`);
+    doc.moveDown();
+  }
+
+  // Drugs
+  doc.font('Helvetica-Bold');
+  doc.text('Prescription:');
+  doc.moveDown(0.5);
+  doc.font('Helvetica');
+
+  prescription.drugs.forEach((drug, index) => {
+    doc.text(`${index + 1}. ${drug.drugName}`, { underline: true });
+    doc.text(`Posologie: ${drug.dosage}`);
+    doc.text(`Durée: ${drug.duration} jours`);
+    if (drug.instructions) {
+      doc.text(`Instructions: ${drug.instructions}`);
+    }
+    doc.moveDown();
+  });
+
+  doc.moveDown(3);
+  doc.text('Signature et Cachet', { align: 'right' });
+
+  doc.end();
+  return doc;
+};

@@ -64,7 +64,7 @@ exports.updatePatient = async (req, res, next) => {
 
 exports.deletePatient = async (req, res, next) => {
   try {
-    await patientService.deletePatient(req.params.id);
+    await patientService.deletePatient(req.params.id, req.user.userId);
     res.status(204).send();
   } catch (err) {
     next(err);

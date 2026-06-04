@@ -71,7 +71,15 @@ const getUserById = async (id) => {
   return user;
 };
 
-const updateUser = async (id, data) => {
+const updateUser = async (id, data, currentUser) => {
+  const originalUser = await User.findById(id);
+  if (!originalUser) {
+    const err = new Error('User not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+
   if (data.username) {
     const existing = await User.findOne({ username: data.username, _id: { $ne: id } });
     if (existing) {
@@ -82,12 +90,21 @@ const updateUser = async (id, data) => {
     }
   }
 
+  const roleChanged = data.role && data.role !== originalUser.role;
+
   const user = await User.findByIdAndUpdate(id, data, { new: true, runValidators: true }).select('-password');
-  if (!user) {
-    const err = new Error('User not found');
-    err.status = 404;
-    err.code = 'NOT_FOUND';
-    throw err;
+  
+  if (roleChanged && currentUser) {
+    const AuditLog = require('../audit/audit.model');
+    await AuditLog.create({
+      userId: currentUser.userId,
+      action: 'change_role',
+      details: `Changed role of user ${user.username} from ${originalUser.role} to ${user.role}`,
+      oldValues: { role: originalUser.role },
+      newValues: { role: user.role },
+      resourceType: 'User',
+      resourceId: user._id
+    });
   }
   
   return user;

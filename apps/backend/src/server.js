@@ -1,8 +1,16 @@
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const path = require('path');
+const http = require('http');
 const app = require('./app');
 const { seedInitialDirector } = require('./modules/user/user.service');
+const { initSocket } = require('./socket');
+
+// Initialize Cron Jobs
+require('./jobs/appointmentReminder.job');
+require('./jobs/paymentReminder.job');
+require('./jobs/backup.job');
+require('./jobs/cleanup.job');
 
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
@@ -16,7 +24,12 @@ mongoose.connect(MONGODB_URI)
   .then(async () => {
     logger.info('Connected to MongoDB');
     await seedInitialDirector();
-    app.listen(PORT, () => {
+    
+    const server = http.createServer(app);
+    initSocket(server);
+    
+    server.listen(PORT, () => {
+      console.log("HELLO I AM THE REAL SERVER ON PORT", PORT);
       logger.info(`Server running on port ${PORT}`);
     });
   })
