@@ -20,6 +20,10 @@ const exportQuerySchema = z.object({
 });
 
 router.use(requireAuth);
+
+// Revenue trends is used by Dashboard (all roles), not just Reports page
+router.get('/revenue-trends', reportController.getRevenueTrends);
+
 router.use(requireRoles(['director']));
 
 router.get('/financial', validate(querySchema, 'query'), reportController.getFinancialReport);

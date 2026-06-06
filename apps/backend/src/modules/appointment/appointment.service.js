@@ -93,7 +93,10 @@ exports.createAppointment = async (data, currentUser) => {
 };
 
 exports.listAppointments = async (query, currentUser) => {
-  const { page, limit, from, to, doctorId, patientId, status } = query;
+  const { doctorId, patientId, status } = query;
+  const page = Math.max(1, parseInt(query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 20));
+  let { from, to } = query;
   const filter = {};
 
   // Role-based filter
@@ -108,7 +111,15 @@ exports.listAppointments = async (query, currentUser) => {
 
   if (patientId) filter.patientId = patientId;
   if (status) filter.status = status;
-  if (from || to) {
+
+  // Default to today if no date range provided
+  if (!from && !to) {
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    filter.date = { $gte: today, $lt: tomorrow };
+  } else {
     filter.date = {};
     if (from) filter.date.$gte = new Date(from);
     if (to) filter.date.$lte = new Date(to);
@@ -120,7 +131,7 @@ exports.listAppointments = async (query, currentUser) => {
     Appointment.find(filter)
       .populate('patientId', 'fullName')
       .populate('doctorId', 'fullName')
-      .sort({ date: -1, timeSlot: 1 })
+      .sort({ date: 1, timeSlot: 1 })
       .skip(skip)
       .limit(limit)
       .lean(),

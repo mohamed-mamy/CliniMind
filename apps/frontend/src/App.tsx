@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { useNotifications } from './hooks/useNotifications';
+import { useSocket } from './hooks/useSocket';
+import { api } from './services/api';
+import { notifStore } from './store/notifStore';
+import { authStore } from './store/authStore';
 import { t, LangKey } from './services/localization';
 
 // Import Pages
@@ -22,9 +26,49 @@ export default function App() {
   const [showBellDropdown, setShowBellDropdown] = useState<boolean>(false);
   const [showLangDropdown, setShowLangDropdown] = useState<boolean>(false);
   const [timeStr, setTimeStr] = useState<string>('00:00');
+  const [clinicName, setClinicName] = useState<string>(authStore.getClinicName());
+
+  // Connect socket on login
+  useSocket();
+
+  // Fetch settings and persisted critical notifications on login
+  useEffect(() => {
+    if (isLoggedIn) {
+      api.getSettings().then(res => {
+        if (res.success && res.data?.clinicName) {
+          authStore.setClinicName(res.data.clinicName);
+        }
+      }).catch(() => {});
+
+      api.getCriticalLabResults().then(res => {
+        if (res.success && res.data.length > 0) {
+          const items = res.data.map((r: any) => ({
+            id: `critical-api-${r.id}`,
+            title: 'نتيجة حرجة / Résultat critique',
+            description: r.patientName ? `نتيجة حرجة للمريض: ${r.patientName}` : 'نتيجة حرجة',
+            time: r.completedAt ? new Date(r.completedAt).toLocaleString('ar-SA') : '',
+            type: 'critical' as const,
+          }));
+          items.forEach((item: any) => notifStore.addNotification(item));
+        }
+      });
+    }
+  }, [isLoggedIn]);
 
   const activeTrans = t[lang];
   const isRTL = activeTrans.dir === 'rtl';
+
+  // Sync clinicName from authStore reactively and update document title
+  useEffect(() => {
+    const unsubscribe = authStore.subscribe(() => {
+      setClinicName(authStore.getClinicName());
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    document.title = clinicName;
+  }, [clinicName]);
 
   // Dynamic Clock
   useEffect(() => {
@@ -50,6 +94,16 @@ export default function App() {
     }
   }, [isLoggedIn, user]);
 
+  // Listen for navigation events from child components (e.g. Dashboard quick actions)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const tab = (e as CustomEvent).detail;
+      if (tab) setActiveTab(tab);
+    };
+    window.addEventListener('app-navigate', handler);
+    return () => window.removeEventListener('app-navigate', handler);
+  }, []);
+
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
   };
@@ -70,7 +124,7 @@ export default function App() {
       { id: 'dashboard', label: activeTrans.tabDashboard, roles: ['director', 'doctor', 'receptionist'] },
       { id: 'patients', label: activeTrans.tabPatients, roles: ['director', 'doctor', 'receptionist'] },
       { id: 'appointments', label: activeTrans.tabSchedule, roles: ['director', 'doctor', 'receptionist'] },
-      { id: 'laboratory', label: activeTrans.hospitalRequests, roles: ['director', 'doctor', 'receptionist', 'lab_technician'] },
+      { id: 'laboratory', label: activeTrans.hospitalRequests, roles: ['director', 'doctor', 'lab_technician'] },
       { id: 'billing', label: activeTrans.tabBilling, roles: ['director', 'receptionist'] },
       { id: 'expenses', label: activeTrans.tabExpenses, roles: ['director'] },
       { id: 'reports', label: activeTrans.tabReports, roles: ['director'] },
@@ -226,7 +280,7 @@ export default function App() {
           {/* Top Toolbar / Dashboard Header */}
           <header className="h-16 shrink-0 bg-white border-b border-slate-100 px-8 flex items-center justify-between dark:border-slate-800 dark:bg-slate-900 transition-colors z-10">
             <div className="flex items-center gap-4">
-              <span className="text-xl font-black text-sky-850 dark:text-sky-400">CliniMind</span>
+              <span className="text-xl font-black text-sky-850 dark:text-sky-400">{clinicName}</span>
               <span className="text-xs font-semibold text-slate-400 hidden md:inline">|</span>
               <span className="text-xs font-bold text-slate-500 hidden md:inline">{timeStr}</span>
             </div>

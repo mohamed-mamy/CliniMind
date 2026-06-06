@@ -1,25 +1,5 @@
 const mongoose = require('mongoose');
 const User = require('./user.model');
-const pino = require('pino');
-const logger = pino();
-
-// Seed first director
-const seedInitialDirector = async () => {
-  const directorCount = await User.countDocuments({ role: 'director' });
-  if (directorCount === 0) {
-    logger.info('Seeding initial director...');
-    const defaultDirector = new User({
-      username: 'admin',
-      password: 'adminpassword', // plain text as requested
-      role: 'director',
-      fullName: 'Default Director',
-      email: 'admin@clinimind.com',
-      isActive: true
-    });
-    await defaultDirector.save();
-    logger.info('Initial director created (admin/adminpassword)');
-  }
-};
 
 const createUser = async (data, creatorId) => {
   if (data.role === 'director') {
@@ -146,7 +126,6 @@ const deleteUser = async (id, requesterId) => {
 };
 
 module.exports = {
-  seedInitialDirector,
   createUser,
   getUsers,
   getUserById,

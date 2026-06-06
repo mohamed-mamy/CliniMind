@@ -1,39 +1,44 @@
+import axios from 'axios';
 import { User } from '../store/authStore';
 
+interface LoginResponse {
+  success: boolean;
+  data: {
+    user: User;
+    accessToken: string;
+    refreshToken: string;
+    accessTokenExpiresAt: string;
+    refreshTokenExpiresAt: string;
+  };
+  error: null | { code: string; message: string };
+}
+
 export const authService = {
-  login: async (username: string, password: string): Promise<User> => {
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    const u = username.toLowerCase().trim();
-
-    // Set role based on username hints, default to receptionist
-    let role: User['role'] = 'receptionist';
-    let fullName = 'سحر أحمد (استقبال)';
-
-    if (u.includes('director') || u.includes('admin') || u.includes('مدير')) {
-      role = 'director';
-      fullName = 'د. أحمد يوسف (المدير)';
-    } else if (u.includes('doctor') || u.includes('doc') || u.includes('طبيب')) {
-      role = 'doctor';
-      fullName = 'د. سارة محمود (طبيبة)';
-    } else if (u.includes('lab') || u.includes('tech') || u.includes('مختبر')) {
-      role = 'lab_technician';
-      fullName = 'أسامة خالد (مختبر)';
-    }
-
-    // Passwords must be checked. We accept anything 4 chars+ for mocking
-    if (password.length < 4) {
-      throw new Error('كلمة المرور قصيرة جداً (الحد الأدنى 4 خانات)');
-    }
+  login: async (username: string, password: string): Promise<{ user: User; accessToken: string; refreshToken: string }> => {
+    const response = await axios.post<LoginResponse>('/v1/auth/login', { username, password });
+    const { data } = response.data;
 
     return {
-      fullName,
-      role,
+      user: data.user,
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
     };
   },
 
-  logout: async (): Promise<void> => {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-  }
+  refresh: async (refreshToken: string): Promise<{ user: User; accessToken: string; refreshToken: string }> => {
+    const response = await axios.post<LoginResponse>('/v1/auth/refresh', { refreshToken });
+    const { data } = response.data;
+
+    return {
+      user: data.user,
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+    };
+  },
+
+  logout: async (accessToken: string): Promise<void> => {
+    await axios.post('/v1/auth/logout', {}, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+  },
 };

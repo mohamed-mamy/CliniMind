@@ -43,6 +43,13 @@ const labRequestSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  completedAt: {
+    type: Date,
+  },
+  completedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
 }, {
   timestamps: true,
 });

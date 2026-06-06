@@ -7,7 +7,6 @@ const http = require('http');
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const app = require('./app');
-const { seedInitialDirector } = require('./modules/user/user.service');
 const { initSocket } = require('./socket');
 
 // Initialize Cron Jobs (must be after dotenv.config)
@@ -25,8 +24,6 @@ const logger = pino();
 mongoose.connect(MONGODB_URI)
   .then(async () => {
     logger.info('Connected to MongoDB');
-    await seedInitialDirector();
-    
     const server = http.createServer(app);
     initSocket(server);
     

@@ -1,4 +1,6 @@
-// Standard API response envelope matching Frontend-Plan.md
+import axios, { AxiosRequestHeaders } from 'axios';
+import { authStore } from '../store/authStore';
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T;
@@ -7,10 +9,9 @@ export interface ApiResponse<T> {
     page: number;
     limit: number;
     total: number;
-  };
+  } | null;
 }
 
-// Domain Interfaces
 export interface Patient {
   id: string;
   fullName: string;
@@ -27,22 +28,43 @@ export interface Patient {
 
 export interface Appointment {
   id: string;
+  patientId: string;
   patientName: string;
-  timeSlot: string;
-  reason: string;
-  status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+  doctorId: string;
   doctorName: string;
-  room: string;
+  date: string;
+  timeSlot: string;
+  duration: number;
+  reason: string;
+  type: 'normal' | 'followup' | 'emergency' | 'checkup';
+  status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+  waitingRoomPosition: number | null;
+  createdAt: string;
+}
+
+export interface LabResult {
+  testName: string;
+  resultText?: string;
+  resultNumeric?: number;
+  unit?: string;
+  normalRange?: string;
+  attachmentUrl?: string;
 }
 
 export interface LabRequest {
   id: string;
+  patientId: string;
   patientName: string;
-  location: string;
-  testName: string;
+  doctorId: string;
+  doctorName?: string;
+  tests: string[];
   priority: 'normal' | 'urgent';
   status: 'pending' | 'in_progress' | 'completed';
-  time: string;
+  isCritical: boolean;
+  results: LabResult[];
+  requestedAt: string;
+  completedAt?: string;
+  createdAt?: string;
 }
 
 export interface Expense {
@@ -64,230 +86,308 @@ export interface Invoice {
   createdAt: string;
 }
 
-// In-Memory Database for Mock Mode
-const MOCK_PATIENTS: Patient[] = [
-  {
-    id: "1",
-    fullName: "يوسف عبدالله",
-    fileNumber: "9482",
-    phonePrimary: "050-123-4567",
-    lastVisit: "اليوم",
-    ageCategory: "19-35 ans",
-    gender: "M",
-    bloodType: "O+",
-    allergies: [{ type: "food", description: "Fraise / الفراولة" }],
-    chronicDiseases: ["asthma"],
-    confidentialNotes: "المريض يعاني من ربو خفيف ويستخدم البخاخ عند الضرورة."
-  },
-  {
-    id: "2",
-    fullName: "سارة العتيبي",
-    fileNumber: "7391",
-    phonePrimary: "055-987-6543",
-    lastVisit: "12 مايو",
-    ageCategory: "19-35 ans",
-    gender: "F",
-    bloodType: "A-",
-    allergies: [],
-    chronicDiseases: [],
-    confidentialNotes: "مراجعة اعتيادية."
-  },
-  {
-    id: "3",
-    fullName: "محمد الفهد",
-    fileNumber: "1024",
-    phonePrimary: "053-444-5555",
-    lastVisit: "3 مارس 2023",
-    ageCategory: "36-50 ans",
-    gender: "M",
-    bloodType: "B+",
-    allergies: [{ type: "medication", description: "Pénicilline" }],
-    chronicDiseases: ["diabetes", "hypertension"],
-    confidentialNotes: "مريض سكري من النوع الثاني ملتزم بالحمية والعلاج."
-  },
-];
+function authHeaders(): AxiosRequestHeaders {
+  const token = authStore.getAccessToken();
+  if (token) {
+    return { Authorization: `Bearer ${token}` } as AxiosRequestHeaders;
+  }
+  return {} as AxiosRequestHeaders;
+}
 
-const MOCK_APPOINTMENTS: Appointment[] = [
-  {
-    id: "1",
-    patientName: "فاطمة علي محمد",
-    timeSlot: "09:00",
-    reason: "مراجعة دورية",
-    status: "scheduled",
-    doctorName: "د. أحمد يوسف",
-    room: "غرفة 3",
-  },
-  {
-    id: "2",
-    patientName: "خالد حسن عبدالله",
-    timeSlot: "10:30",
-    reason: "استشارة طبية",
-    status: "confirmed",
-    doctorName: "د. أحمد يوسف",
-    room: "غرفة 3",
-  },
-  {
-    id: "3",
-    patientName: "مريم سعد الجاسم",
-    timeSlot: "11:15",
-    reason: "تخطيط قلب",
-    status: "completed",
-    doctorName: "د. سارة محمود",
-    room: "غرفة 1",
-  },
-  {
-    id: "4",
-    patientName: "عمر طارق زكي",
-    timeSlot: "01:00",
-    reason: "متابعة ضغط الدم",
-    status: "confirmed",
-    doctorName: "د. سارة محمود",
-    room: "غرفة 2",
-  },
-];
-
-const MOCK_LAB_REQUESTS: LabRequest[] = [
-  {
-    id: "1",
-    patientName: "فاطمة علي سعيد",
-    location: "غرفة العناية المركزة - سرير 4",
-    testName: "غازات الدم الشرياني (ABG)",
-    priority: "urgent",
-    status: "pending",
-    time: "منذ 10 دقائق",
-  },
-  {
-    id: "2",
-    patientName: "محمد عبدالله",
-    location: "قسم الطوارئ",
-    testName: "زراعة دم سريع (Blood Culture)",
-    priority: "urgent",
-    status: "pending",
-    time: "منذ 25 دقيقة",
-  },
-  {
-    id: "3",
-    patientName: "خالد إبراهيم",
-    location: "العيادات الخارجية",
-    testName: "وظائف الكبد (LFT)",
-    priority: "normal",
-    status: "pending",
-    time: "وقت الطلب: 09:30 ص",
-  },
-  {
-    id: "4",
-    patientName: "نورة سعيد",
-    location: "جناح النساء والولادة",
-    testName: "تحليل بول كامل",
-    priority: "normal",
-    status: "pending",
-    time: "وقت الطلب: 10:15 ص",
-  },
-];
-
-const MOCK_EXPENSES: Expense[] = [
-  { id: "1", category: "supplies", amount: 1500, description: "شراء مستلزمات طبية وقفازات معقمة", date: "2026-06-01" },
-  { id: "2", category: "utilities", amount: 450, description: "فاتورة الكهرباء والماء لشهر مايو", date: "2026-05-28" },
-  { id: "3", category: "salary", amount: 12000, description: "رواتب طاقم الاستقبال والممرضين", date: "2026-05-30" },
-];
-
-const MOCK_INVOICES: Invoice[] = [
-  { id: "1", invoiceNumber: "INV-1001", patientName: "يوسف عبدالله", totalAmount: 350, paidAmount: 350, remainingAmount: 0, status: "paid", createdAt: "2026-06-04" },
-  { id: "2", invoiceNumber: "INV-1002", patientName: "سارة العتيبي", totalAmount: 500, paidAmount: 200, remainingAmount: 300, status: "partial", createdAt: "2026-06-03" },
-  { id: "3", invoiceNumber: "INV-1003", patientName: "محمد الفهد", totalAmount: 150, paidAmount: 0, remainingAmount: 150, status: "unpaid", createdAt: "2026-06-02" },
-];
-
-// Helper to simulate API response wrap
-function makeResponse<T>(data: T): ApiResponse<T> {
+function mapPatient(p: any): Patient {
   return {
-    success: true,
-    data,
-    error: null,
+    id: p._id,
+    fullName: p.fullName,
+    fileNumber: String(p.fileNumber),
+    phonePrimary: p.phonePrimary,
+    lastVisit: p.updatedAt || p.createdAt || '',
+    ageCategory: p.ageCategory,
+    gender: p.gender,
+    bloodType: p.bloodType,
+    allergies: p.medicalHistory?.allergies || p.allergies,
+    chronicDiseases: p.medicalHistory?.chronicDiseases || p.chronicDiseases,
+    confidentialNotes: p.medicalHistory?.confidentialNotes || p.confidentialNotes,
   };
 }
 
+function mapAppointment(a: any): Appointment {
+  return {
+    id: a._id,
+    patientId: a.patientId?._id || a.patientId,
+    patientName: a.patientName || a.patientId?.fullName || '',
+    doctorId: a.doctorId?._id || a.doctorId,
+    doctorName: a.doctorName || a.doctorId?.fullName || '',
+    date: a.date,
+    timeSlot: a.timeSlot,
+    duration: a.duration || 15,
+    reason: a.reason || '',
+    type: a.type || 'normal',
+    status: a.status,
+    waitingRoomPosition: a.waitingRoomPosition ?? null,
+    createdAt: a.createdAt,
+  };
+}
+
+function mapLabRequest(r: any): LabRequest {
+  return {
+    id: r._id,
+    patientId: r.patientId?._id || r.patientId || '',
+    patientName: r.patientId?.fullName || r.patientName || '',
+    doctorId: r.doctorId?._id || r.doctorId || '',
+    doctorName: r.doctorId?.fullName || r.doctorName || '',
+    tests: r.tests || [],
+    priority: r.priority,
+    status: r.status,
+    isCritical: r.isCritical || false,
+    results: r.results || [],
+    requestedAt: r.requestedAt || r.createdAt || '',
+    completedAt: r.completedAt || undefined,
+    createdAt: r.createdAt || '',
+  };
+}
+
+function mapExpense(e: any): Expense {
+  return {
+    id: e._id,
+    category: e.category,
+    amount: e.amount,
+    description: e.description,
+    date: e.date ? e.date.substring(0, 10) : '',
+  };
+}
+
+function mapInvoice(i: any): Invoice {
+  return {
+    id: i._id,
+    invoiceNumber: String(i.invoiceNumber),
+    patientName: i.patientName,
+    totalAmount: i.totalAmount,
+    paidAmount: i.paidAmount,
+    remainingAmount: i.remainingAmount,
+    status: i.status,
+    createdAt: i.createdAt ? i.createdAt.substring(0, 10) : '',
+  };
+}
+
+export interface ClinicSettings {
+  clinicName: string;
+  clinicAddress?: string;
+  clinicPhone?: string;
+  clinicEmail?: string;
+  logoUrl?: string;
+  defaultConsultationFee?: number;
+  smtpConfig?: { host?: string; port?: number };
+  criticalThresholds?: Record<string, { min: number; max: number; unit: string }>;
+}
+
+export interface UserDto {
+  _id: string;
+  fullName: string;
+  role: string;
+}
+
 export const api = {
-  // --- PATIENTS ---
   getPatients: async (): Promise<ApiResponse<Patient[]>> => {
-    return makeResponse([...MOCK_PATIENTS]);
+    const res = await axios.get('/v1/patients', { headers: authHeaders() });
+    return { success: true, data: res.data.data.map(mapPatient), error: null, meta: res.data.meta };
   },
+
   createPatient: async (patient: Omit<Patient, 'id' | 'fileNumber' | 'lastVisit'>): Promise<ApiResponse<Patient>> => {
-    const newPatient: Patient = {
-      ...patient,
-      id: String(MOCK_PATIENTS.length + 1),
-      fileNumber: String(Math.floor(1000 + Math.random() * 9000)),
-      lastVisit: 'اليوم',
+    const body: Record<string, any> = {
+      fullName: patient.fullName,
+      phonePrimary: patient.phonePrimary,
+      gender: patient.gender,
+      ageCategory: patient.ageCategory,
+      bloodType: patient.bloodType,
     };
-    MOCK_PATIENTS.unshift(newPatient);
-    return makeResponse(newPatient);
+    if (patient.allergies?.length) body.allergies = patient.allergies;
+    if (patient.chronicDiseases?.length) body.chronicDiseases = patient.chronicDiseases;
+    if (patient.confidentialNotes) {
+      body.medicalHistory = { confidentialNotes: patient.confidentialNotes };
+    }
+    const res = await axios.post('/v1/patients', body, { headers: authHeaders() });
+    return { success: true, data: mapPatient(res.data.data), error: null };
   },
+
   deletePatient: async (id: string): Promise<ApiResponse<string>> => {
-    const idx = MOCK_PATIENTS.findIndex(p => p.id === id);
-    if (idx !== -1) {
-      MOCK_PATIENTS.splice(idx, 1);
-    }
-    return makeResponse(id);
+    await axios.delete(`/v1/patients/${id}`, { headers: authHeaders() });
+    return { success: true, data: id, error: null };
   },
 
-  // --- APPOINTMENTS ---
-  getAppointments: async (): Promise<ApiResponse<Appointment[]>> => {
-    return makeResponse([...MOCK_APPOINTMENTS]);
+  getAppointments: async (params?: { from?: string; to?: string; doctorId?: string; status?: string }): Promise<ApiResponse<Appointment[]>> => {
+    const res = await axios.get('/v1/appointments', { headers: authHeaders(), params });
+    return { success: true, data: res.data.data.map(mapAppointment), error: null, meta: res.data.meta };
   },
+
+  getUsers: async (params?: { role?: string }): Promise<ApiResponse<UserDto[]>> => {
+    const res = await axios.get('/v1/users', { headers: authHeaders(), params });
+    return { success: true, data: res.data.data, error: null };
+  },
+
+  createAppointment: async (data: { patientId: string; doctorId: string; date: string; timeSlot: string; reason?: string; type?: string; duration?: number }): Promise<ApiResponse<Appointment>> => {
+    const res = await axios.post('/v1/appointments', data, { headers: authHeaders() });
+    return { success: true, data: mapAppointment(res.data.data), error: null };
+  },
+
   updateAppointmentStatus: async (id: string, status: Appointment['status']): Promise<ApiResponse<Appointment>> => {
-    const appt = MOCK_APPOINTMENTS.find(a => a.id === id);
-    if (appt) {
-      appt.status = status;
-      return makeResponse(appt);
-    }
-    throw new Error('Appointment not found');
+    const res = await axios.put(`/v1/appointments/${id}/status`, { status }, { headers: authHeaders() });
+    return { success: true, data: mapAppointment(res.data.data), error: null };
   },
 
-  // --- LABORATORY ---
-  getLabRequests: async (): Promise<ApiResponse<LabRequest[]>> => {
-    return makeResponse([...MOCK_LAB_REQUESTS]);
+  getLabRequests: async (params?: { status?: string; priority?: string; patientId?: string }): Promise<ApiResponse<LabRequest[]>> => {
+    const res = await axios.get('/v1/lab/requests', { headers: authHeaders(), params });
+    return { success: true, data: (res.data.data || []).map(mapLabRequest), error: null, meta: res.data.meta };
   },
+
+  getPendingLabRequests: async (): Promise<ApiResponse<LabRequest[]>> => {
+    const res = await axios.get('/v1/lab/requests/pending', { headers: authHeaders() });
+    return { success: true, data: (res.data.data || []).map(mapLabRequest), error: null, meta: res.data.meta };
+  },
+
+  getLabRequestById: async (id: string): Promise<ApiResponse<LabRequest>> => {
+    const res = await axios.get(`/v1/lab/requests/${id}`, { headers: authHeaders() });
+    return { success: true, data: mapLabRequest(res.data.data), error: null };
+  },
+
+  createLabRequest: async (data: { patientId: string; tests: string[]; priority?: 'normal' | 'urgent' }): Promise<ApiResponse<LabRequest>> => {
+    const res = await axios.post('/v1/lab/requests', data, { headers: authHeaders() });
+    return { success: true, data: mapLabRequest(res.data.data), error: null };
+  },
+
   updateLabRequestStatus: async (id: string, status: LabRequest['status']): Promise<ApiResponse<LabRequest>> => {
-    const req = MOCK_LAB_REQUESTS.find(r => r.id === id);
-    if (req) {
-      req.status = status;
-      return makeResponse(req);
-    }
-    throw new Error('Lab request not found');
+    const res = await axios.put(`/v1/lab/requests/${id}/status`, { status }, { headers: authHeaders() });
+    return { success: true, data: mapLabRequest(res.data.data), error: null };
   },
 
-  // --- EXPENSES (Nouveau) ---
+  enterLabResults: async (id: string, results: LabResult[]): Promise<ApiResponse<{ labRequest: LabRequest; criticalResults: string[] }>> => {
+    const res = await axios.put(`/v1/lab/requests/${id}/results`, { results }, { headers: authHeaders() });
+    return { success: true, data: {
+      labRequest: mapLabRequest(res.data.data.labRequest),
+      criticalResults: res.data.data.criticalResults || [],
+    }, error: null };
+  },
+
+  getCriticalLabResults: async (from?: string): Promise<ApiResponse<LabRequest[]>> => {
+    const res = await axios.get('/v1/lab/results/critical', { headers: authHeaders(), params: { from } });
+    return { success: true, data: (res.data.data || []).map(mapLabRequest), error: null };
+  },
+
   getExpenses: async (): Promise<ApiResponse<Expense[]>> => {
-    return makeResponse([...MOCK_EXPENSES]);
-  },
-  createExpense: async (expense: Omit<Expense, 'id'>): Promise<ApiResponse<Expense>> => {
-    const newExpense: Expense = {
-      ...expense,
-      id: String(MOCK_EXPENSES.length + 1),
-    };
-    MOCK_EXPENSES.unshift(newExpense);
-    return makeResponse(newExpense);
-  },
-  deleteExpense: async (id: string): Promise<ApiResponse<string>> => {
-    const idx = MOCK_EXPENSES.findIndex(e => e.id === id);
-    if (idx !== -1) {
-      MOCK_EXPENSES.splice(idx, 1);
-    }
-    return makeResponse(id);
+    const res = await axios.get('/v1/expenses', { headers: authHeaders() });
+    return { success: true, data: res.data.data.map(mapExpense), error: null, meta: res.data.meta };
   },
 
-  // --- BILLING / INVOICES ---
-  getInvoices: async (): Promise<ApiResponse<Invoice[]>> => {
-    return makeResponse([...MOCK_INVOICES]);
+  createExpense: async (expense: Omit<Expense, 'id'>): Promise<ApiResponse<Expense>> => {
+    const res = await axios.post('/v1/expenses', {
+      ...expense,
+      date: expense.date ? new Date(expense.date).toISOString() : new Date().toISOString(),
+    }, { headers: authHeaders() });
+    return { success: true, data: mapExpense(res.data.data), error: null };
   },
+
+  deleteExpense: async (id: string): Promise<ApiResponse<string>> => {
+    await axios.delete(`/v1/expenses/${id}`, { headers: authHeaders() });
+    return { success: true, data: id, error: null };
+  },
+
+  getInvoices: async (): Promise<ApiResponse<Invoice[]>> => {
+    const res = await axios.get('/v1/invoices', { headers: authHeaders() });
+    return { success: true, data: res.data.data.map(mapInvoice), error: null, meta: res.data.meta };
+  },
+
   createInvoice: async (invoice: Omit<Invoice, 'id' | 'invoiceNumber' | 'status' | 'remainingAmount'>): Promise<ApiResponse<Invoice>> => {
-    const newInvoice: Invoice = {
-      ...invoice,
-      id: String(MOCK_INVOICES.length + 1),
-      invoiceNumber: `INV-${1000 + MOCK_INVOICES.length + 1}`,
-      remainingAmount: invoice.totalAmount - invoice.paidAmount,
-      status: invoice.paidAmount === 0 ? 'unpaid' : invoice.paidAmount >= invoice.totalAmount ? 'paid' : 'partial'
+    const patientsRes = await axios.get('/v1/patients', { headers: authHeaders() });
+    let patientId = patientsRes.data.data?.[0]?._id;
+
+    if (!patientId) {
+      const newPatient = await axios.post('/v1/patients', {
+        fullName: invoice.patientName || 'Walk-in',
+        phonePrimary: '0000000000',
+        gender: 'M',
+        ageCategory: '19-35 ans',
+      }, { headers: authHeaders() });
+      patientId = newPatient.data.data._id;
+    }
+
+    const res = await axios.post('/v1/invoices', {
+      patientId,
+      items: [{ type: 'consultation', description: invoice.patientName, quantity: 1, unitPrice: invoice.totalAmount }],
+    }, { headers: authHeaders() });
+
+    const inv = mapInvoice(res.data.data);
+
+    if (invoice.paidAmount > 0) {
+      await axios.post(`/v1/invoices/${inv.id}/payment`, {
+        amount: invoice.paidAmount,
+        paymentMethod: 'cash',
+      }, { headers: authHeaders() });
+      const paidRes = await axios.get(`/v1/invoices/${inv.id}`, { headers: authHeaders() });
+      return { success: true, data: mapInvoice(paidRes.data.data), error: null };
+    }
+
+    return { success: true, data: inv, error: null };
+  },
+
+  getFinancialReport: async (params?: { from?: string; to?: string }): Promise<ApiResponse<{
+    period: { from: string; to: string };
+    totalRevenue: number;
+    totalExpenses: number;
+    netProfit: number;
+    byCategory: Record<string, number>;
+    expensesByCategory: Record<string, number>;
+    unpaidInvoices: number;
+  }>> => {
+    const res = await axios.get('/v1/reports/financial', { headers: authHeaders(), params });
+    return { success: true, data: res.data.data, error: null };
+  },
+
+  getMedicalReport: async (params?: { from?: string; to?: string }): Promise<ApiResponse<{
+    period: { from: string; to: string };
+    totalAppointments: number;
+    completedAppointments: number;
+    cancelledAppointments: number;
+    noShowRate: number;
+    topDiagnoses: string[];
+    labRequests: { total: number; completed: number; criticalResults: number };
+  }>> => {
+    const res = await axios.get('/v1/reports/medical', { headers: authHeaders(), params });
+    return { success: true, data: res.data.data, error: null };
+  },
+
+  getReceptionistDashboard: async (): Promise<ApiResponse<{
+    stats: {
+      todayAppointments: number;
+      todayCheckedIn: number;
+      todayRevenue: number;
+      waitingRoomCount: number;
     };
-    MOCK_INVOICES.unshift(newInvoice);
-    return makeResponse(newInvoice);
+    todayAgenda: Appointment[];
+    recentInvoices: Invoice[];
+  }>> => {
+    const res = await axios.get('/v1/dashboard/receptionist', { headers: authHeaders() });
+    return { success: true, data: res.data.data, error: null };
+  },
+
+  getPublicSettings: async (): Promise<ApiResponse<{ clinicName: string }>> => {
+    const res = await axios.get('/v1/settings/public');
+    return res.data;
+  },
+
+  getSettings: async (): Promise<ApiResponse<ClinicSettings>> => {
+    const res = await axios.get('/v1/settings', { headers: authHeaders() });
+    return res.data;
+  },
+
+  updateSettings: async (data: Partial<ClinicSettings>): Promise<ApiResponse<ClinicSettings>> => {
+    const res = await axios.put('/v1/settings', data, { headers: authHeaders() });
+    return res.data;
+  },
+
+  getRevenueTrends: async (days?: number): Promise<ApiResponse<{
+    trends: { date: string; revenue: number; count: number }[];
+    totalRevenue: number;
+  }>> => {
+    const res = await axios.get('/v1/reports/revenue-trends', { headers: authHeaders(), params: { days } });
+    return { success: true, data: res.data.data, error: null };
   },
 };

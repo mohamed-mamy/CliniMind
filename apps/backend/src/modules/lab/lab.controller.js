@@ -67,6 +67,22 @@ const enterLabResults = async (req, res, next) => {
   }
 };
 
+const updateLabRequestStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return sendError(res, 400, 'VALIDATION_ERROR', 'Invalid Lab Request ID');
+    }
+    const labRequest = await labService.updateLabRequestStatus(id, status, req.user.userId);
+    return sendSuccess(res, 200, labRequest);
+  } catch (error) {
+    if (error.status === 404) return sendError(res, 404, 'NOT_FOUND', error.message);
+    if (error.status === 409) return sendError(res, 409, 'INVALID_TRANSITION', error.message);
+    next(error);
+  }
+};
+
 const getCriticalResults = async (req, res, next) => {
   try {
     const { from } = req.query;
@@ -82,6 +98,7 @@ module.exports = {
   listLabRequests,
   getPendingLabRequests,
   getLabRequestById,
+  updateLabRequestStatus,
   enterLabResults,
   getCriticalResults,
 };

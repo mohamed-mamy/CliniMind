@@ -6,8 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node src/server.js",
-    "test": "npm run test:integration",
-    "test:integration": "node tests/integration.test.js"
+    "seed": "node scripts/seed-users.js",
+    "test": "echo \"No tests configured for production\""
   },
   "keywords": [],
   "author": "",

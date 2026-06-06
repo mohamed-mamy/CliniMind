@@ -25,17 +25,6 @@ Since you are not authenticated initially, the application will automatically ro
 
 ---
 
-## Mock Login Credentials
-
-To test different role-based views (RBAC), log in with the following usernames (passwords can be any combination of 4 or more characters, e.g., `1234`):
-
-| Role | Username | Access Permissions |
-|---|---|---|
-| **Director / المدير** | `director` or `admin` | Full system access (Dashboard, Patients, Appointments, Laboratory, Billing, Expenses, Reports, Settings) |
-| **Doctor / الطبيب** | `doctor` | Clinical records access (Dashboard, Patients, Appointments, Laboratory) |
-| **Receptionist / الاستقبال** | `receptionist` | Front desk operational access (Dashboard, Patients, Appointments, Laboratory, Billing) |
-| **Lab Technician / المختبر** | `lab` or `technician` | Lab requests queue access (Laboratory only) |
-
 ---
 
 ## Build and Code Quality

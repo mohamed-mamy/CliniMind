@@ -17,6 +17,26 @@ const sanitizeSettings = (settings) => {
   return sanitized;
 };
 
+// GET /settings/public — no auth required, returns only clinicName
+const getPublicSettings = async (req, res, next) => {
+  try {
+    let settings = await Setting.findOneAndUpdate(
+      SINGLETON_FILTER,
+      { $setOnInsert: {} },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    ).lean();
+
+    res.status(200).json({
+      success: true,
+      data: { clinicName: settings.clinicName },
+      error: null,
+      meta: null
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // GET /settings
 const getSettings = async (req, res, next) => {
   try {
@@ -106,6 +126,7 @@ const updateSettings = async (req, res, next) => {
 };
 
 module.exports = {
+  getPublicSettings,
   getSettings,
   updateSettings
 };

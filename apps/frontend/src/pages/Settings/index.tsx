@@ -1,35 +1,69 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { t } from '../../services/localization';
+import { api } from '../../services/api';
+import { authStore } from '../../store/authStore';
 
 export default function Settings() {
   const { lang, user } = useAuth();
   const activeTrans = t[lang];
   const isDirector = user?.role === 'director';
 
-  // State values (Clinic information)
-  const [clinicName, setClinicName] = useState('عيادة الطب الشامل');
-  const [clinicAddress, setClinicAddress] = useState('طريق الملك عبد العزيز، الرياض');
-  const [clinicFee, setClinicFee] = useState(150);
+  const [clinicName, setClinicName] = useState('');
+  const [clinicAddress, setClinicAddress] = useState('');
+  const [clinicFee, setClinicFee] = useState(0);
+  const [smtpHost, setSmtpHost] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
 
-  // SMTP Settings (Director only)
-  const [smtpHost, setSmtpHost] = useState('smtp.clinimind.com');
-  const [smtpUser, setSmtpUser] = useState('notification@clinimind.com');
+  useEffect(() => {
+    api.getSettings().then(res => {
+      if (res.success && res.data) {
+        setClinicName(res.data.clinicName || '');
+        setClinicAddress(res.data.clinicAddress || '');
+        setClinicFee(res.data.defaultConsultationFee ?? 0);
+        if (res.data.smtpConfig?.host) setSmtpHost(res.data.smtpConfig.host);
+      }
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
 
-  const handleSaveSettings = (e: React.FormEvent) => {
+  const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert(lang === 'ar' ? 'تم حفظ الإعدادات بنجاح!' : 'Settings updated successfully!');
+    setMessage('');
+    setSaving(true);
+    try {
+      const res = await api.updateSettings({
+        clinicName,
+        clinicAddress,
+        defaultConsultationFee: clinicFee,
+      });
+      if (res.success) {
+        authStore.setClinicName(clinicName);
+        setMessage(lang === 'ar' ? 'تم حفظ الإعدادات بنجاح!' : 'Settings saved successfully!');
+      }
+    } catch {
+      setMessage(lang === 'ar' ? 'حدث خطأ أثناء الحفظ' : 'Error saving settings');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="animate-fadeIn text-center py-20 text-slate-400 text-sm">
+        {lang === 'ar' ? 'جاري تحميل الإعدادات...' : 'Loading settings...'}
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fadeIn space-y-6 text-start">
       <h2 className="text-2xl font-black text-slate-800 dark:text-slate-100">{activeTrans.tabSettings}</h2>
 
       <form onSubmit={handleSaveSettings} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left/Middle: Editable fields or read-only based on role */}
         <div className="lg:col-span-2 space-y-6">
-          
-          {/* General settings card */}
+
           <div className="rounded-3xl border border-slate-150 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-4">
             <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-100 border-b border-slate-100 pb-3 dark:border-slate-800">
               {lang === 'ar' ? 'معلومات العيادة العامة' : 'General Clinic Info'}
@@ -74,7 +108,6 @@ export default function Settings() {
             </div>
           </div>
 
-          {/* SMTP configurations (Director only) */}
           {isDirector ? (
             <div className="rounded-3xl border border-slate-150 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-4">
               <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-100 border-b border-slate-100 pb-3 dark:border-slate-800">
@@ -86,7 +119,6 @@ export default function Settings() {
                   <label className="text-[11px] font-bold text-slate-400 uppercase">{lang === 'ar' ? 'مضيف الـ SMTP' : 'Host Server'}</label>
                   <input
                     type="text"
-                    required
                     value={smtpHost}
                     onChange={(e) => setSmtpHost(e.target.value)}
                     className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none focus:border-sky-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
@@ -97,10 +129,9 @@ export default function Settings() {
                   <label className="text-[11px] font-bold text-slate-400 uppercase">{lang === 'ar' ? 'اسم المستخدم / البريد' : 'Username email'}</label>
                   <input
                     type="email"
-                    required
-                    value={smtpUser}
-                    onChange={(e) => setSmtpUser(e.target.value)}
-                    className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none focus:border-sky-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                    disabled
+                    placeholder="••••••••••••"
+                    className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-100 p-3 text-sm outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400"
                   />
                 </div>
               </div>
@@ -125,24 +156,30 @@ export default function Settings() {
           )}
         </div>
 
-        {/* Right side: Action Save and Threshold lists */}
         <div className="lg:col-span-1 space-y-6">
           <div className="rounded-3xl border border-slate-150 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-4">
             <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-100 border-b border-slate-100 pb-3 dark:border-slate-800">
               {lang === 'ar' ? 'حفظ التعديلات' : 'Save actions'}
             </h3>
-            
+
             {isDirector ? (
               <button
                 type="submit"
-                className="w-full rounded-2xl bg-sky-850 py-3.5 text-xs font-bold text-white shadow-md hover:bg-sky-700 dark:bg-sky-600 cursor-pointer text-center"
+                disabled={saving}
+                className="w-full rounded-2xl bg-sky-850 py-3.5 text-xs font-bold text-white shadow-md hover:bg-sky-700 dark:bg-sky-600 cursor-pointer text-center disabled:opacity-60"
               >
-                {lang === 'ar' ? 'تطبيق وحفظ التغييرات' : 'Save changes'}
+                {saving
+                  ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...')
+                  : (lang === 'ar' ? 'تطبيق وحفظ التغييرات' : 'Save changes')}
               </button>
             ) : (
               <p className="text-xs text-slate-400 italic">
                 {lang === 'ar' ? 'أنت في وضع القراءة فقط، لا تمتلك صلاحيات تعديل هذه الإعدادات.' : 'You have view-only access to settings.'}
               </p>
+            )}
+
+            {message && (
+              <p className="text-xs text-center text-green-600 dark:text-green-400 font-bold">{message}</p>
             )}
           </div>
 

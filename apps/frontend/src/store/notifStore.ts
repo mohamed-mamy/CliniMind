@@ -6,22 +6,7 @@ export interface UrgentNotification {
   type: 'critical' | 'warning';
 }
 
-let notificationList: UrgentNotification[] = [
-  {
-    id: "1",
-    title: "نتيجة مختبر حرجة",
-    description: "المريض: أحمد محمد - مستوى البوتاسيوم مرتفع جداً (6.5 mmol/L).",
-    time: "منذ 10 دقائق",
-    type: "critical",
-  },
-  {
-    id: "2",
-    title: "نقص في المخزون",
-    description: "مخزون القفازات المعقمة (حجم L) أقل من الحد الأدنى.",
-    time: "منذ ساعة",
-    type: "warning",
-  },
-];
+let notificationList: UrgentNotification[] = [];
 
 const listeners = new Set<() => void>();
 

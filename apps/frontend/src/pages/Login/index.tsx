@@ -1,16 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { t, LangKey } from '../../services/localization';
 import { authService } from '../../services/authService';
+import { api } from '../../services/api';
 
 export default function Login() {
   const { lang, setLang, setAuth } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loginErrorMsg, setLoginErrorMsg] = useState('');
-  const [biometricToastText, setBiometricToastText] = useState('');
   const [showLangDropdown, setShowLangDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [clinicName, setClinicName] = useState('CliniMind');
+
+  useEffect(() => {
+    api.getPublicSettings().then(res => {
+      if (res.success && res.data?.clinicName) {
+        setClinicName(res.data.clinicName);
+        document.title = res.data.clinicName;
+      }
+    }).catch(() => {});
+  }, []);
 
   const activeTrans = t[lang];
 
@@ -22,8 +32,8 @@ export default function Login() {
     setLoginErrorMsg('');
 
     try {
-      const user = await authService.login(username, password);
-      setAuth(user);
+      const { user, accessToken, refreshToken } = await authService.login(username, password);
+      setAuth(user, accessToken, refreshToken);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setLoginErrorMsg(err.message);
@@ -33,19 +43,6 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleBiometricClick = () => {
-    setBiometricToastText(activeTrans.biometricToast);
-    setTimeout(async () => {
-      try {
-        const user = await authService.login('director', '1234');
-        setAuth(user);
-      } catch {
-        setLoginErrorMsg(activeTrans.loginError);
-      }
-      setBiometricToastText('');
-    }, 1500);
   };
 
   const changeLanguage = (newLang: LangKey) => {
@@ -62,9 +59,9 @@ export default function Login() {
       {/* Login Card Form */}
       <div className="w-full max-w-sm rounded-[32px] border border-slate-800 bg-slate-900/90 p-8 shadow-2xl backdrop-blur-md relative z-10 text-center animate-fadeIn">
         
-        {/* CliniMind Logo Title */}
+        {/* Clinic Logo Title */}
         <h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-blue-500">
-          {activeTrans.appName}
+          {clinicName}
         </h2>
         <p className="mt-3 text-xs leading-relaxed text-slate-400">
           {activeTrans.loginSubtitle}
@@ -136,32 +133,6 @@ export default function Login() {
             )}
           </button>
         </form>
-
-        {/* Biometric login */}
-        <div className="mt-6 pt-5 border-t border-slate-800 flex flex-col items-center gap-3">
-          <button
-            onClick={handleBiometricClick}
-            disabled={loading}
-            className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-800 text-sky-400 hover:bg-slate-750 transition-colors active:scale-95 shadow-md cursor-pointer"
-            title={activeTrans.biometricLogin}
-          >
-            {/* Fingerprint icon */}
-            <svg className="h-6 w-6 stroke-current stroke-2 fill-none" viewBox="0 0 24 24">
-              <path d="M12 2a10 10 0 0 0-8 4M12 2a10 10 0 0 1 8 4M12 12a10 10 0 0 0-2 6M12 12c1 0 2.5 1 3 3M8 9a10 10 0 0 1 8 0M6 12a12 12 0 0 1 12 0" />
-              <path d="M12 8v8M10 15c0-1.5 1-3 2-3" />
-            </svg>
-          </button>
-          <span className="text-[11px] font-semibold text-slate-400">
-            {activeTrans.biometricLogin}
-          </span>
-        </div>
-
-        {/* Biometric loading feedback toast */}
-        {biometricToastText && (
-          <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 w-64 rounded-xl bg-slate-900 border border-slate-700 py-2.5 px-4 text-xs font-semibold text-sky-400 text-center animate-fadeIn shadow-xl">
-            {biometricToastText}
-          </div>
-        )}
 
         {/* Globe Language selector */}
         <div className="mt-8 flex justify-start">

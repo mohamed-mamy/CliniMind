@@ -36,6 +36,12 @@ router.get('/requests/:id',
   labController.getLabRequestById
 );
 
+// Update lab request status (pending -> in_progress): lab_technician
+router.put('/requests/:id/status',
+  requireRoles(['lab_technician']),
+  labController.updateLabRequestStatus
+);
+
 // Enter lab results: lab_technician ONLY
 router.put('/requests/:id/results', 
   requireRoles(['lab_technician']), 

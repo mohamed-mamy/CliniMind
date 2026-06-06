@@ -1,4 +1,5 @@
 const Invoice = require('../billing/invoice.model');
+const InvoiceItem = require('../billing/invoiceItem.model');
 const Expense = require('../expense/expense.model');
 const Appointment = require('../appointment/appointment.model');
 const LabRequest = require('../lab/labRequest.model');
@@ -6,17 +7,21 @@ const LabRequest = require('../lab/labRequest.model');
 const getFinancialReport = async ({ from, to }) => {
   const invoiceMatch = {};
   const expenseMatch = {};
+  const itemMatch = {};
 
   if (from || to) {
     invoiceMatch.createdAt = {};
     expenseMatch.date = {};
+    itemMatch['invoice.createdAt'] = {};
     if (from) {
       invoiceMatch.createdAt.$gte = new Date(from);
       expenseMatch.date.$gte = new Date(from);
+      itemMatch['invoice.createdAt'].$gte = new Date(from);
     }
     if (to) {
       invoiceMatch.createdAt.$lte = new Date(to);
       expenseMatch.date.$lte = new Date(to);
+      itemMatch['invoice.createdAt'].$lte = new Date(to);
     }
   }
 
@@ -31,10 +36,12 @@ const getFinancialReport = async ({ from, to }) => {
     }
   ]);
 
-  const invoicesByCategory = await Invoice.aggregate([
-    { $match: invoiceMatch },
-    { $unwind: "$items" },
-    { $group: { _id: "$items.type", total: { $sum: "$items.total" } } }
+  // Aggregate by category using InvoiceItem joined with Invoice
+  const invoicesByCategory = await InvoiceItem.aggregate([
+    { $lookup: { from: 'invoices', localField: 'invoiceId', foreignField: '_id', as: 'invoice' } },
+    { $unwind: '$invoice' },
+    { $match: itemMatch },
+    { $group: { _id: '$type', total: { $sum: '$total' } } }
   ]);
 
   const byCategory = {};
@@ -117,8 +124,6 @@ const getMedicalReport = async ({ from, to }) => {
 
   const noShowRate = totalAppointments > 0 ? (noShowCount / totalAppointments) * 100 : 0;
 
-  // Assuming top diagnoses isn't directly stored in Appointment MVP model,
-  // we'll leave it empty or mock it as we can't extract it easily without ICD-10 codes.
   const topDiagnoses = [];
 
   const labReqStats = await LabRequest.aggregate([
@@ -137,7 +142,6 @@ const getMedicalReport = async ({ from, to }) => {
     if (s._id === 'completed') completedLab = s.count;
   });
 
-  // Count critical results
   const resultMatch = { isCritical: true };
   if (from || to) {
     resultMatch.requestedAt = {};
@@ -162,7 +166,44 @@ const getMedicalReport = async ({ from, to }) => {
   };
 };
 
+const getRevenueTrends = async (days = 7) => {
+  const now = new Date();
+  const start = new Date(now);
+  start.setDate(start.getDate() - days + 1);
+  start.setUTCHours(0, 0, 0, 0);
+  const end = new Date(now);
+  end.setUTCHours(23, 59, 59, 999);
+
+  const trends = await Invoice.aggregate([
+    { $match: { createdAt: { $gte: start, $lte: end }, status: { $in: ['paid', 'partial'] } } },
+    { $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+        revenue: { $sum: '$paidAmount' },
+        count: { $sum: 1 }
+      }
+    },
+    { $sort: { _id: 1 } }
+  ]);
+
+  // Fill missing days with zero
+  const result = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    const key = d.toISOString().slice(0, 10);
+    const found = trends.find(t => t._id === key);
+    result.push({
+      date: key,
+      revenue: found?.revenue || 0,
+      count: found?.count || 0
+    });
+  }
+
+  return { trends: result, totalRevenue: result.reduce((s, r) => s + r.revenue, 0) };
+};
+
 module.exports = {
   getFinancialReport,
-  getMedicalReport
+  getMedicalReport,
+  getRevenueTrends
 };

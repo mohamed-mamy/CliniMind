@@ -60,8 +60,19 @@ const exportReports = async (req, res, next) => {
   }
 };
 
+const getRevenueTrends = async (req, res, next) => {
+  try {
+    const days = parseInt(req.query.days, 10) || 7;
+    const data = await reportService.getRevenueTrends(Math.min(days, 90));
+    return sendSuccess(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getFinancialReport,
   getMedicalReport,
-  exportReports
+  exportReports,
+  getRevenueTrends
 };

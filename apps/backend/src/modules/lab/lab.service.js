@@ -68,6 +68,37 @@ const getLabRequestById = async (id) => {
   return labRequest;
 };
 
+const updateLabRequestStatus = async (id, status, userId) => {
+  const labRequest = await LabRequest.findById(id);
+  if (!labRequest) {
+    const error = new Error('Lab request not found');
+    error.status = 404;
+    error.code = 'NOT_FOUND';
+    throw error;
+  }
+
+  const validTransitions = {
+    pending: ['in_progress'],
+    in_progress: ['completed'],
+    completed: [],
+  };
+
+  if (!validTransitions[labRequest.status].includes(status)) {
+    const error = new Error(`Cannot transition from ${labRequest.status} to ${status}`);
+    error.status = 409;
+    error.code = 'INVALID_TRANSITION';
+    throw error;
+  }
+
+  labRequest.status = status;
+  if (status === 'in_progress') {
+    labRequest.assignedTo = userId;
+  }
+
+  await labRequest.save();
+  return labRequest;
+};
+
 const enterResults = async (id, data, technicianId) => {
   const labRequest = await LabRequest.findById(id);
   if (!labRequest) {
@@ -118,7 +149,9 @@ const enterResults = async (id, data, technicianId) => {
   labRequest.results = evaluatedResults;
   labRequest.status = 'completed';
   labRequest.isCritical = hasCritical;
-  
+  labRequest.completedAt = new Date();
+  labRequest.completedBy = technicianId;
+
   await labRequest.save();
 
   if (hasCritical) {
@@ -165,6 +198,7 @@ module.exports = {
   createLabRequest,
   listLabRequests,
   getLabRequestById,
+  updateLabRequestStatus,
   enterResults,
   getCriticalResults,
 };
