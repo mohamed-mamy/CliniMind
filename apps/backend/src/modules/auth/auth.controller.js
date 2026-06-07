@@ -46,9 +46,31 @@ const getMe = async (req, res, next) => {
   }
 };
 
+const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const result = await authService.forgotPassword(email);
+    return sendSuccess(res, 200, result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const { email, code, newPassword } = req.body;
+    const result = await authService.resetPassword(email, code, newPassword);
+    return sendSuccess(res, 200, result);
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   login,
   refresh,
   logout,
-  getMe
+  getMe,
+  forgotPassword,
+  resetPassword
 };

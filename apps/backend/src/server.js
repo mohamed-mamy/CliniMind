@@ -11,6 +11,7 @@ const { initSocket } = require('./socket');
 
 // Initialize Cron Jobs (must be after dotenv.config)
 require('./jobs/appointmentReminder.job');
+require('./jobs/appointmentNearReminder.job');
 require('./jobs/paymentReminder.job');
 require('./jobs/backup.job');
 require('./jobs/cleanup.job');

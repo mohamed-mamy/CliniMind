@@ -15,8 +15,15 @@ export function useSocket() {
     socket.on('disconnect', onDisconnect);
 
     // Lab events
-    socket.on('lab:new_request', () => {
-      console.log('[Socket] New lab request received');
+    socket.on('lab:new_request', (data: any) => {
+      console.log('[Socket] New lab request received:', data);
+      notifStore.addNotification({
+        id: `request-${data?._id || Date.now()}`,
+        title: 'طلب تحليل جديد / Demande d\'analyse',
+        description: `تم استلام طلب تحليل جديد للمريض.`,
+        time: new Date().toLocaleTimeString('ar-SA'),
+        type: 'warning',
+      });
     });
 
     socket.on('lab:critical_result', (data: any) => {

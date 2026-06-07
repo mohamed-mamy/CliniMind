@@ -9,6 +9,8 @@ const userSchema = new mongoose.Schema({
   phone: { type: String },
   isActive: { type: Boolean, default: true },
   lastLoginAt: { type: Date },
+  resetCode: { type: String },
+  resetCodeExpiresAt: { type: Date },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 

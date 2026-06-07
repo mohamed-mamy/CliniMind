@@ -38,9 +38,8 @@ const initSocket = (server) => {
   });
 
   io.on('connection', (socket) => {
-    console.log(`[Socket] User connected: ${socket.user.id || socket.user._id} (${socket.user.role})`);
-
-    const userId = socket.user.id || socket.user._id;
+    const userId = socket.user.userId || socket.user.id || socket.user._id;
+    console.log(`[Socket] User connected: ${userId} (${socket.user.role})`);
 
     // Join personal user room
     socket.join(`user:${userId}`);

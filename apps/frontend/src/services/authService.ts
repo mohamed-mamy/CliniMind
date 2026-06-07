@@ -41,4 +41,14 @@ export const authService = {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
   },
+
+  forgotPassword: async (email: string): Promise<boolean> => {
+    const response = await axios.post('/v1/auth/forgot-password', { email });
+    return response.data.success;
+  },
+
+  resetPassword: async (email: string, code: string, newPassword: string): Promise<boolean> => {
+    const response = await axios.post('/v1/auth/reset-password', { email, code, newPassword });
+    return response.data.success;
+  },
 };

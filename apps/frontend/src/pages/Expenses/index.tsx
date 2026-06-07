@@ -10,6 +10,7 @@ export default function Expenses() {
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
   // Form states
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [category, setCategory] = useState<Expense['category']>('supplies');
   const [amount, setAmount] = useState(100);
   const [description, setDescription] = useState('');
@@ -32,23 +33,54 @@ export default function Expenses() {
     }
   }, [isDirector]);
 
-  const handleCreateExpense = (e: React.FormEvent) => {
+  const clearForm = () => {
+    setEditingExpense(null);
+    setCategory('supplies');
+    setAmount(100);
+    setDescription('');
+    setDate(new Date().toISOString().split('T')[0]);
+  };
+
+  const handleSubmitExpense = (e: React.FormEvent) => {
     e.preventDefault();
     if (!description.trim() || amount <= 0) return;
 
-    api.createExpense({
-      category,
-      amount,
-      description,
-      date,
-    }).then((res) => {
-      if (res.success) {
-        loadExpenses();
-        setDescription('');
-        setAmount(100);
-        setShowCreateModal(false);
-      }
-    });
+    if (editingExpense) {
+      api.updateExpense(editingExpense.id, {
+        category,
+        amount,
+        description,
+        date,
+      }).then((res) => {
+        if (res.success) {
+          loadExpenses();
+          clearForm();
+          setShowCreateModal(false);
+        }
+      });
+    } else {
+      api.createExpense({
+        category,
+        amount,
+        description,
+        date,
+      }).then((res) => {
+        if (res.success) {
+          loadExpenses();
+          clearForm();
+          setShowCreateModal(false);
+        }
+      });
+    }
+  };
+
+  const handleStartEdit = (exp: Expense) => {
+    setEditingExpense(exp);
+    setCategory(exp.category);
+    setAmount(exp.amount);
+    setDescription(exp.description);
+    setDate(exp.date);
+    setShowCreateModal(true);
   };
 
   const handleDeleteExpense = (id: string) => {
@@ -101,7 +133,7 @@ export default function Expenses() {
     <div className="animate-fadeIn space-y-6">
       <div className="flex items-center justify-between">
         <button
-          onClick={() => setShowCreateModal(true)}
+          onClick={() => { clearForm(); setShowCreateModal(true); }}
           className="flex items-center gap-2 rounded-2xl bg-sky-850 text-white px-4 py-2.5 text-xs font-bold shadow-md hover:bg-sky-700 active:scale-95 dark:bg-sky-600 dark:hover:bg-sky-500 cursor-pointer"
         >
           <svg className="h-4.5 w-4.5 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
@@ -166,7 +198,7 @@ export default function Expenses() {
                 <th className="p-4 text-start">{lang === 'ar' ? 'التفاصيل / البيان' : 'Description'}</th>
                 <th className="p-4 text-start">{lang === 'ar' ? 'التاريخ' : 'Date'}</th>
                 <th className="p-4 text-start">{lang === 'ar' ? 'القيمة' : 'Amount'}</th>
-                <th className="p-4 text-center">{lang === 'ar' ? 'حذف' : 'Delete'}</th>
+                <th className="p-4 text-center">{lang === 'ar' ? 'الإجراءات' : 'Actions'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -187,10 +219,21 @@ export default function Expenses() {
                     <td className="p-4 font-medium text-slate-800 dark:text-slate-200 text-start">{exp.description}</td>
                     <td className="p-4 text-slate-500 text-start">{exp.date}</td>
                     <td className="p-4 font-black text-red-500 text-start">{exp.amount} {activeTrans.currency}</td>
-                    <td className="p-4 text-center">
+                    <td className="p-4 text-center flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => handleStartEdit(exp)}
+                        className="text-sky-600 hover:text-sky-800 hover:scale-105 active:scale-95 transition-all p-1.5 cursor-pointer"
+                        title={lang === 'ar' ? 'تعديل' : 'Edit'}
+                      >
+                        <svg className="h-4.5 w-4.5 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                          <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                      </button>
                       <button
                         onClick={() => handleDeleteExpense(exp.id)}
                         className="text-red-500 hover:text-red-700 hover:scale-105 active:scale-95 transition-all p-1.5 cursor-pointer"
+                        title={lang === 'ar' ? 'حذف' : 'Delete'}
                       >
                         <svg className="h-4.5 w-4.5 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
                           <polyline points="3 6 5 6 21 6" />
@@ -212,7 +255,7 @@ export default function Expenses() {
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 animate-fadeIn text-start">
             <div className="flex items-center justify-between mb-5">
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => { setShowCreateModal(false); clearForm(); }}
                 className="rounded-full bg-slate-100 p-1.5 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 cursor-pointer"
               >
                 <svg className="h-4 w-4 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
@@ -220,11 +263,11 @@ export default function Expenses() {
                 </svg>
               </button>
               <h3 className="text-base font-bold text-slate-850 dark:text-slate-100">
-                {lang === 'ar' ? 'سجل بند مصروفات جديد' : 'Log New Expense Item'}
+                {editingExpense ? (lang === 'ar' ? 'تعديل المصروف' : 'Edit Expense') : (lang === 'ar' ? 'سجل بند مصروفات جديد' : 'Log New Expense Item')}
               </h3>
             </div>
 
-            <form onSubmit={handleCreateExpense} className="space-y-4">
+            <form onSubmit={handleSubmitExpense} className="space-y-4">
               <div>
                 <label className="text-[11px] font-bold text-slate-400 uppercase">{lang === 'ar' ? 'تصنيف المصروف' : 'Expense Category'}</label>
                 <select
@@ -277,9 +320,9 @@ export default function Expenses() {
               <div className="pt-3">
                 <button
                   type="submit"
-                  className="w-full rounded-2xl bg-sky-800 py-3.5 text-xs font-bold text-white shadow-md hover:bg-sky-700 dark:bg-sky-600 cursor-pointer"
+                  className="w-full rounded-2xl bg-sky-850 py-3.5 text-xs font-bold text-white shadow-md hover:bg-sky-700 dark:bg-sky-600 cursor-pointer"
                 >
-                  {lang === 'ar' ? 'تسجيل المصروف' : 'Submit Expense'}
+                  {editingExpense ? (lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes') : (lang === 'ar' ? 'تسجيل المصروف' : 'Submit Expense')}
                 </button>
               </div>
             </form>

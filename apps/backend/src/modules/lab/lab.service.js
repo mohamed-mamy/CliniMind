@@ -1,7 +1,10 @@
 const mongoose = require('mongoose');
 const LabRequest = require('./labRequest.model');
 const Notification = require('../notification/notification.model');
-const { emitNewLabRequest, emitCriticalResult } = require('../../socket');
+const User = require('../user/user.model');
+const Patient = require('../patient/patient.model');
+const { sendEmail } = require('../../utils/email.util');
+const { emitNewLabRequest, emitCriticalResult, emitNotification } = require('../../socket');
 
 // Load Settings model with correct path
 let Settings;
@@ -22,10 +25,56 @@ const createLabRequest = async (data, doctorId) => {
   
   await labRequest.save();
 
-  // Note: Invoice items creation should be hooked here if billing is enabled
-  // billingService.addInvoiceItem(...)
+  // Fetch patient details for formatting notifications
+  const patient = await Patient.findById(data.patientId).lean();
+  const patientName = patient ? patient.fullName : 'Walk-in';
 
-  // Emit real-time notification for lab:new_request
+  // Find all active lab technicians
+  const technicians = await User.find({ role: 'lab_technician', isActive: true });
+
+  for (const tech of technicians) {
+    try {
+      // 1. Create a persistent notification in the DB
+      const notification = await Notification.create({
+        userId: tech._id,
+        type: 'new_lab_request',
+        title: 'طلب تحليل مخبري جديد / Demande d\'analyse',
+        body: `تم إرسال طلب تحليل جديد للمريض ${patientName} من قبل الطبيب.`,
+        data: { labRequestId: labRequest._id }
+      });
+
+      // 2. Emit real-time notification via Socket.IO
+      emitNotification(tech._id, notification);
+    } catch (dbErr) {
+      console.error('[LabService Error] Failed to create DB notification for tech:', dbErr.message);
+    }
+
+    // 3. Send email notification
+    if (tech.email) {
+      try {
+        await sendEmail({
+          to: tech.email,
+          subject: `طلب تحليل جديد - ${patientName}`,
+          text: `تم استلام طلب تحليل جديد للمريض ${patientName}. الفحوصات المطلوبة: ${labRequest.tests.join(', ')}.`,
+          html: `
+            <div style="font-family: sans-serif; direction: rtl; text-align: right; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+              <h3 style="color: #0284c7;">طلب تحليل مخبري جديد</h3>
+              <p>أهلاً بك،</p>
+              <p>تم استلام طلب تحليل مخبري جديد للمريض: <strong>${patientName}</strong>.</p>
+              <p>الفحوصات المطلوبة: <strong>${labRequest.tests.join(', ')}</strong></p>
+              <p>الأولوية: <strong>${labRequest.priority === 'urgent' ? 'عاجل / Urgent' : 'عادي / Normal'}</strong></p>
+              <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+              <p style="font-size: 11px; color: #999;">CliniMind Center - نظام إدارة العيادات المتكامل</p>
+            </div>
+          `
+        });
+      } catch (mailErr) {
+        console.error('[LabService Error] Failed to send email to technician:', mailErr.message);
+      }
+    }
+  }
+
+  // Emit generic room notification for lab technicians
   emitNewLabRequest(labRequest);
 
   return labRequest;

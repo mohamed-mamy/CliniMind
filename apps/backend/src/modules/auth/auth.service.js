@@ -105,9 +105,77 @@ const revokeAllTokens = async (userId) => {
   await RefreshToken.updateMany({ userId }, { revoked: true });
 };
 
+const forgotPassword = async (email) => {
+  const user = await User.findOne({ email });
+  if (!user) {
+    const err = new Error('User not found with this email');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+
+  // Generate 6-digit verification code
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  user.resetCode = code;
+  user.resetCodeExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins expiry
+  await user.save();
+
+  // Send email alert
+  const { sendEmail } = require('../../utils/email.util');
+  await sendEmail({
+    to: user.email,
+    subject: 'رمز إعادة تعيين كلمة المرور / Code de réinitialisation de mot de passe',
+    text: `رمز التحقق الخاص بك هو: ${code}. هذا الرمز صالح لمدة 15 دقيقة.`,
+    html: `
+      <div style="font-family: sans-serif; direction: rtl; text-align: right; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+        <h3 style="color: #0284c7;">إعادة تعيين كلمة المرور</h3>
+        <p>أهلاً <strong>${user.fullName}</strong>،</p>
+        <p>لقد طلبت إعادة تعيين كلمة المرور الخاصة بك على CliniMind.</p>
+        <p>رمز التحقق الخاص بك هو:</p>
+        <div style="background-color: #f0f9ff; border: 1px dashed #0284c7; padding: 15px; font-size: 24px; font-weight: bold; text-align: center; letter-spacing: 5px; color: #0369a1; border-radius: 8px; margin: 20px 0;">
+          ${code}
+        </div>
+        <p>هذا الرمز صالح لمدة 15 دقيقة فقط.</p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+        <p style="font-size: 11px; color: #999;">CliniMind Center - في حال لم تطلب هذا الرمز، يرجى تجاهل هذه الرسالة.</p>
+      </div>
+    `
+  });
+
+  return { success: true };
+};
+
+const resetPassword = async (email, code, newPassword) => {
+  const user = await User.findOne({
+    email,
+    resetCode: code,
+    resetCodeExpiresAt: { $gt: new Date() }
+  });
+
+  if (!user) {
+    const err = new Error('Invalid verification code or code has expired');
+    err.status = 400;
+    err.code = 'INVALID_RESET_CODE';
+    throw err;
+  }
+
+  user.password = newPassword;
+  user.resetCode = undefined;
+  user.resetCodeExpiresAt = undefined;
+  await user.save();
+
+  // Invalidate any active refresh tokens for security
+  await revokeAllTokens(user._id);
+
+  return { success: true };
+};
+
 module.exports = {
   login,
   refresh,
   logout,
-  revokeAllTokens
+  revokeAllTokens,
+  forgotPassword,
+  resetPassword
 };

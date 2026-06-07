@@ -1,7 +1,10 @@
 import { io, Socket } from 'socket.io-client';
 import { authStore } from '../store/authStore';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 
+  (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+    ? 'https://clinimind-backend.onrender.com'
+    : 'http://localhost:3001');
 
 let socket: Socket | null = null;
 

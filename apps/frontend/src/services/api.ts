@@ -290,6 +290,14 @@ export const api = {
     return { success: true, data: id, error: null };
   },
 
+  updateExpense: async (id: string, expense: Partial<Omit<Expense, 'id'>>): Promise<ApiResponse<Expense>> => {
+    const res = await axios.put(`/v1/expenses/${id}`, {
+      ...expense,
+      date: expense.date ? new Date(expense.date).toISOString() : undefined,
+    }, { headers: authHeaders() });
+    return { success: true, data: mapExpense(res.data.data), error: null };
+  },
+
   getInvoices: async (): Promise<ApiResponse<Invoice[]>> => {
     const res = await axios.get('/v1/invoices', { headers: authHeaders() });
     return { success: true, data: res.data.data.map(mapInvoice), error: null, meta: res.data.meta };
@@ -326,6 +334,19 @@ export const api = {
     }
 
     return { success: true, data: inv, error: null };
+  },
+
+  recordPayment: async (id: string, data: { amount: number; paymentMethod: string }): Promise<ApiResponse<Invoice>> => {
+    const res = await axios.post(`/v1/invoices/${id}/payment`, data, { headers: authHeaders() });
+    return { success: true, data: mapInvoice(res.data.data.invoice || res.data.data), error: null };
+  },
+
+  getInvoicePdf: async (id: string): Promise<Blob> => {
+    const res = await axios.get(`/v1/invoices/${id}/pdf`, {
+      headers: authHeaders(),
+      responseType: 'blob'
+    });
+    return res.data;
   },
 
   getFinancialReport: async (params?: { from?: string; to?: string }): Promise<ApiResponse<{

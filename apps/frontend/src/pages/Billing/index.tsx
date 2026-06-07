@@ -56,25 +56,37 @@ export default function Billing() {
     e.preventDefault();
     if (!showPayModal) return;
 
-    // Simulate updating paid amount
-    const updatedInvoices = invoices.map((inv) => {
-      if (inv.id === showPayModal.id) {
-        const nextPaid = inv.paidAmount + paymentInput;
-        const nextRemaining = Math.max(0, inv.totalAmount - nextPaid);
-        const status = (nextPaid >= inv.totalAmount ? 'paid' : nextPaid > 0 ? 'partial' : 'unpaid') as Invoice['status'];
-        return {
-          ...inv,
-          paidAmount: nextPaid,
-          remainingAmount: nextRemaining,
-          status,
-        };
+    api.recordPayment(showPayModal.id, {
+      amount: paymentInput,
+      paymentMethod: 'cash'
+    }).then((res) => {
+      if (res.success) {
+        loadInvoices();
+        setPaymentInput(0);
+        setShowPayModal(null);
       }
-      return inv;
     });
+  };
 
-    setInvoices(updatedInvoices);
-    setPaymentInput(0);
-    setShowPayModal(null);
+  const handlePrintInvoice = (id: string) => {
+    api.getInvoicePdf(id).then((blob) => {
+      const fileURL = URL.createObjectURL(blob);
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = fileURL;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+          URL.revokeObjectURL(fileURL);
+        }, 1000);
+      };
+    }).catch((err) => {
+      console.error(err);
+      alert(lang === 'ar' ? 'خطأ أثناء تحميل أو طباعة الفاتورة' : 'Error loading or printing invoice');
+    });
   };
 
   const filteredInvoices = invoices.filter(
@@ -172,7 +184,7 @@ export default function Billing() {
                           </button>
                         )}
                         <button
-                          onClick={() => alert(lang === 'ar' ? 'تحميل الفاتورة PDF...' : 'Downloading PDF Invoice...')}
+                          onClick={() => handlePrintInvoice(inv.id)}
                           className="bg-slate-50 text-slate-650 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 rounded-xl px-3 py-1 font-bold hover:scale-105 active:scale-95 cursor-pointer"
                         >
                           {lang === 'ar' ? 'تصدير PDF' : 'Export PDF'}

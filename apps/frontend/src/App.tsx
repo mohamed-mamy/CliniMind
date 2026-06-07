@@ -27,6 +27,7 @@ export default function App() {
   const [showLangDropdown, setShowLangDropdown] = useState<boolean>(false);
   const [timeStr, setTimeStr] = useState<string>('00:00');
   const [clinicName, setClinicName] = useState<string>(authStore.getClinicName());
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
 
   // Connect socket on login
   useSocket();
@@ -146,10 +147,20 @@ export default function App() {
       dir={activeTrans.dir}
       className={`min-h-screen w-full flex flex-col font-sans transition-colors duration-300 bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-200`}
     >
-      <div className="flex-1 w-full flex h-screen overflow-hidden">
+      <div className="flex-1 w-full flex h-screen overflow-hidden relative">
         
+        {/* Backdrop Overlay for Mobile Sidebar */}
+        {sidebarOpen && (
+          <div
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 z-30 bg-black/40 backdrop-blur-xs md:hidden"
+          />
+        )}
+
         {/* SIDEBAR NAVIGATION */}
-        <aside className="w-64 bg-white border-slate-100 flex flex-col justify-between shrink-0 z-20 shadow-sm border-e dark:border-slate-800 dark:bg-slate-900 transition-colors">
+        <aside className={`fixed inset-y-0 ${isRTL ? 'right-0' : 'left-0'} z-40 w-64 bg-white border-slate-100 flex flex-col justify-between shrink-0 shadow-sm border-e dark:border-slate-800 dark:bg-slate-900 transition-all duration-300 transform md:relative md:translate-x-0 ${
+          sidebarOpen ? 'translate-x-0' : (isRTL ? 'translate-x-full md:translate-x-0' : '-translate-x-full md:translate-x-0')
+        }`}>
           <div className="flex flex-col overflow-y-auto">
             {/* Profile Card Section */}
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 text-center flex flex-col items-center gap-3">
@@ -245,7 +256,7 @@ export default function App() {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => { setActiveTab(tab.id); setSidebarOpen(false); }}
                     className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                       isActive
                         ? 'bg-sky-50 text-sky-850 dark:bg-sky-950/40 dark:text-sky-400'
@@ -263,7 +274,7 @@ export default function App() {
           {/* Logout button at the bottom of sidebar */}
           <div className="p-4 border-t border-slate-100 dark:border-slate-800">
             <button
-              onClick={handleLogout}
+              onClick={() => { handleLogout(); setSidebarOpen(false); }}
               className="w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all active:scale-98 cursor-pointer"
             >
               <svg className="h-5 w-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
@@ -280,6 +291,17 @@ export default function App() {
           {/* Top Toolbar / Dashboard Header */}
           <header className="h-16 shrink-0 bg-white border-b border-slate-100 px-8 flex items-center justify-between dark:border-slate-800 dark:bg-slate-900 transition-colors z-10">
             <div className="flex items-center gap-4">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 text-slate-700 hover:bg-slate-100 dark:bg-slate-850 dark:text-slate-200 dark:hover:bg-slate-800 md:hidden cursor-pointer"
+                title="القائمة"
+              >
+                <svg className="h-5 w-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
               <span className="text-xl font-black text-sky-850 dark:text-sky-400">{clinicName}</span>
               <span className="text-xs font-semibold text-slate-400 hidden md:inline">|</span>
               <span className="text-xs font-bold text-slate-500 hidden md:inline">{timeStr}</span>
