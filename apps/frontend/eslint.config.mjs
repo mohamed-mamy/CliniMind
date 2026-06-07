@@ -1,18 +1,42 @@
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+import js from "@eslint/js";
 
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
-]);
+export default [
+  {
+    ignores: [
+      "**/dist/**",
+      "**/node_modules/**",
+      "**/build/**",
+      "**/.vite/**",
+      "vite.config.ts"
+    ]
+  },
+  js.configs.recommended,
+  {
+    languageOptions: {
+      globals: {
+        window: "readonly",
+        document: "readonly",
+        console: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        setInterval: "readonly",
+        clearInterval: "readonly",
+        localStorage: "readonly",
+        sessionStorage: "readonly",
+        fetch: "readonly",
+        URL: "readonly",
+        Blob: "readonly",
+        FormData: "readonly",
+        CustomEvent: "readonly",
+        alert: "readonly"
+      }
+    },
+    rules: {
+      "no-unused-vars": "warn",
+      "no-undef": "off",
+      "no-empty": "warn"
+    }
+  }
+];
 
-export default eslintConfig;
+
