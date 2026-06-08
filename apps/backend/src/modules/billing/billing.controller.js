@@ -67,6 +67,7 @@ exports.generateInvoicePdf = async (req, res, next) => {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="invoice-${req.params.id}.pdf"`);
     pdfStream.pipe(res);
+    pdfStream.end();
   } catch (error) {
     if (error.code) {
       return sendError(res, error.status, error.code, error.message);

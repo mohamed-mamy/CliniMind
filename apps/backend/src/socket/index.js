@@ -30,7 +30,7 @@ const initSocket = (server) => {
       }
       
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      socket.user = decoded; // { id, role, ... } depending on JWT payload structure
+      socket.user = { ...decoded, id: decoded.userId };
       next();
     } catch (err) {
       next(new Error('Authentication error'));

@@ -7,6 +7,7 @@ export default function Expenses() {
   const { lang, user } = useAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
   // Form states
@@ -47,6 +48,26 @@ export default function Expenses() {
         setDescription('');
         setAmount(100);
         setShowCreateModal(false);
+      }
+    });
+  };
+
+  const handleEditExpense = (exp: Expense) => {
+    setEditingExpense(exp);
+    setCategory(exp.category);
+    setAmount(exp.amount);
+    setDescription(exp.description);
+    setDate(exp.date);
+  };
+
+  const handleUpdateExpense = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingExpense || !description.trim() || amount <= 0) return;
+
+    api.updateExpense(editingExpense.id, { category, amount, description, date }).then((res) => {
+      if (res.success) {
+        loadExpenses();
+        setEditingExpense(null);
       }
     });
   };
@@ -166,7 +187,7 @@ export default function Expenses() {
                 <th className="p-4 text-start">{lang === 'ar' ? 'التفاصيل / البيان' : 'Description'}</th>
                 <th className="p-4 text-start">{lang === 'ar' ? 'التاريخ' : 'Date'}</th>
                 <th className="p-4 text-start">{lang === 'ar' ? 'القيمة' : 'Amount'}</th>
-                <th className="p-4 text-center">{lang === 'ar' ? 'حذف' : 'Delete'}</th>
+                <th className="p-4 text-center">{lang === 'ar' ? 'إجراءات' : 'Actions'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -188,15 +209,28 @@ export default function Expenses() {
                     <td className="p-4 text-slate-500 text-start">{exp.date}</td>
                     <td className="p-4 font-black text-red-500 text-start">{exp.amount} {activeTrans.currency}</td>
                     <td className="p-4 text-center">
-                      <button
-                        onClick={() => handleDeleteExpense(exp.id)}
-                        className="text-red-500 hover:text-red-700 hover:scale-105 active:scale-95 transition-all p-1.5 cursor-pointer"
-                      >
-                        <svg className="h-4.5 w-4.5 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
-                          <polyline points="3 6 5 6 21 6" />
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                        </svg>
-                      </button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => handleEditExpense(exp)}
+                          className="text-sky-600 hover:text-sky-800 hover:scale-105 active:scale-95 transition-all p-1.5 cursor-pointer"
+                          title={lang === 'ar' ? 'تعديل' : 'Edit'}
+                        >
+                          <svg className="h-4.5 w-4.5 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteExpense(exp.id)}
+                          className="text-red-500 hover:text-red-700 hover:scale-105 active:scale-95 transition-all p-1.5 cursor-pointer"
+                          title={lang === 'ar' ? 'حذف' : 'Delete'}
+                        >
+                          <svg className="h-4.5 w-4.5 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -205,6 +239,87 @@ export default function Expenses() {
           </table>
         </div>
       </div>
+
+      {/* POPUP MODAL: EDIT EXPENSE */}
+      {editingExpense && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 animate-fadeIn text-start">
+            <div className="flex items-center justify-between mb-5">
+              <button
+                onClick={() => setEditingExpense(null)}
+                className="rounded-full bg-slate-100 p-1.5 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 cursor-pointer"
+              >
+                <svg className="h-4 w-4 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+              <h3 className="text-base font-bold text-slate-850 dark:text-slate-100">
+                {lang === 'ar' ? 'تعديل المصروف' : 'Edit Expense'}
+              </h3>
+            </div>
+
+            <form onSubmit={handleUpdateExpense} className="space-y-4">
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase">{lang === 'ar' ? 'تصنيف المصروف' : 'Expense Category'}</label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value as Expense['category'])}
+                  className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800 outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                >
+                  {Object.entries(categoryLabels).map(([key, label]) => (
+                    <option key={key} value={key}>{label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase">{lang === 'ar' ? 'المبلغ الكلي' : 'Amount'}</label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={amount}
+                    onChange={(e) => setAmount(Number(e.target.value))}
+                    className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none focus:border-sky-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase">{lang === 'ar' ? 'التاريخ' : 'Date'}</label>
+                  <input
+                    type="date"
+                    required
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-800 outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase">{lang === 'ar' ? 'التفاصيل والبيان' : 'Description'}</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="مثال: دفع رواتب عمال النظافة والصيانة..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none focus:border-sky-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                />
+              </div>
+
+              <div className="pt-3">
+                <button
+                  type="submit"
+                  className="w-full rounded-2xl bg-sky-800 py-3.5 text-xs font-bold text-white shadow-md hover:bg-sky-700 dark:bg-sky-600 cursor-pointer"
+                >
+                  {lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* POPUP MODAL: CREATE EXPENSE */}
       {showCreateModal && (

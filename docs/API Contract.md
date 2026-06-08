@@ -277,7 +277,7 @@ Director only.
 
 ### 3.2 GET /users
 
-**Auth:** Bearer | **Roles:** director  
+**Auth:** Bearer | **Roles:** director, receptionist, doctor  
 **Description:** List all employees.
 
 **Query params**
@@ -296,7 +296,7 @@ Director only.
 
 ### 3.3 GET /users/:id
 
-**Auth:** Bearer | **Roles:** director  
+**Auth:** Bearer | **Roles:** director, receptionist, doctor  
 **Description:** Get employee details.
 
 **Path params** — `id`: ObjectId.
@@ -640,8 +640,8 @@ Doctor-only notes.
 
 ### 6.5 PUT /appointments/:id/status
 
-**Auth:** Bearer | **Roles:** receptionist  
-**Description:** Quick status update for waiting room management.
+**Auth:** Bearer | **Roles:** receptionist, doctor, director  
+**Description:** Quick status update for waiting room management. Doctors can only mark their own appointments as `completed`.
 
 **Path params** — `id`: ObjectId.
 

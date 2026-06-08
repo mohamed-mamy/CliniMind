@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { useNotifications } from './hooks/useNotifications';
 import { useSocket } from './hooks/useSocket';
+import { useConsultationNotifier } from './hooks/useConsultationNotifier';
 import { api } from './services/api';
 import { notifStore } from './store/notifStore';
 import { authStore } from './store/authStore';
@@ -27,11 +28,35 @@ export default function App() {
   const [showLangDropdown, setShowLangDropdown] = useState<boolean>(false);
   const [timeStr, setTimeStr] = useState<string>('00:00');
   const [clinicName, setClinicName] = useState<string>(authStore.getClinicName());
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [notifLoading, setNotifLoading] = useState<boolean>(false);
 
   // Connect socket on login
   useSocket();
+  useConsultationNotifier();
 
-  // Fetch settings and persisted critical notifications on login
+  // Helper: fetch notifications from API and merge into store
+  const fetchNotificationsFromApi = async () => {
+    try {
+      const res = await api.getNotifications(1, 30);
+      if (res.success && res.data) {
+        const mapped = res.data.notifications.map((n: any) => ({
+          id: `api-${n._id}`,
+          title: n.title,
+          description: n.body,
+          time: n.createdAt ? new Date(n.createdAt).toLocaleString('ar-SA') : '',
+          type: (n.type === 'critical_result' ? 'critical' : 'warning') as 'critical' | 'warning',
+          isRead: n.isRead,
+        }));
+        notifStore.mergeNotifications(mapped);
+        setUnreadCount(res.data.unreadCount);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  // Fetch settings and persisted notifications on login
   useEffect(() => {
     if (isLoggedIn) {
       api.getSettings().then(res => {
@@ -40,20 +65,18 @@ export default function App() {
         }
       }).catch(() => {});
 
-      api.getCriticalLabResults().then(res => {
-        if (res.success && res.data.length > 0) {
-          const items = res.data.map((r: any) => ({
-            id: `critical-api-${r.id}`,
-            title: 'نتيجة حرجة / Résultat critique',
-            description: r.patientName ? `نتيجة حرجة للمريض: ${r.patientName}` : 'نتيجة حرجة',
-            time: r.completedAt ? new Date(r.completedAt).toLocaleString('ar-SA') : '',
-            type: 'critical' as const,
-          }));
-          items.forEach((item: any) => notifStore.addNotification(item));
-        }
-      });
+      // Load persisted notifications from DB
+      fetchNotificationsFromApi();
     }
   }, [isLoggedIn]);
+
+  // Keep unreadCount in sync with the local store
+  useEffect(() => {
+    const unsubscribe = notifStore.subscribe(() => {
+      setUnreadCount(notifStore.getUnreadCount());
+    });
+    return unsubscribe;
+  }, []);
 
   const activeTrans = t[lang];
   const isRTL = activeTrans.dir === 'rtl';
@@ -280,7 +303,7 @@ export default function App() {
           {/* Top Toolbar / Dashboard Header */}
           <header className="h-16 shrink-0 bg-white border-b border-slate-100 px-8 flex items-center justify-between dark:border-slate-800 dark:bg-slate-900 transition-colors z-10">
             <div className="flex items-center gap-4">
-              <span className="text-xl font-black text-sky-850 dark:text-sky-400">{clinicName}</span>
+              <span className="text-xl font-black text-sky-850 dark:text-sky-400">{clinicName || (lang === 'ar' ? 'العيادة' : 'Clinic')}</span>
               <span className="text-xs font-semibold text-slate-400 hidden md:inline">|</span>
               <span className="text-xs font-bold text-slate-500 hidden md:inline">{timeStr}</span>
             </div>
@@ -346,49 +369,142 @@ export default function App() {
               {/* Notifications Bell Dropdown */}
               <div className="relative">
                 <button
-                  onClick={() => setShowBellDropdown(!showBellDropdown)}
+                  id="notifications-bell"
+                  onClick={async () => {
+                    const opening = !showBellDropdown;
+                    setShowBellDropdown(opening);
+                    if (opening) {
+                      setNotifLoading(true);
+                      await fetchNotificationsFromApi();
+                      setNotifLoading(false);
+                      // Mark all as read in DB + local store
+                      notifStore.markAllRead();
+                      api.markAllNotificationsRead().catch(() => {});
+                      setUnreadCount(0);
+                    }
+                  }}
                   className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 text-slate-700 transition-all hover:bg-slate-100 active:scale-95 dark:bg-slate-850 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer"
                 >
                   <svg className="h-4.5 w-4.5 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
                     <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9m4.73 13a3 3 0 0 0 5.54 0" />
                   </svg>
-                  {notifications.length > 0 && (
-                    <span className="absolute top-1.5 right-1.5 flex h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-900"></span>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-0.5 text-[9px] font-bold text-white ring-2 ring-white dark:ring-slate-900">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
                   )}
                 </button>
 
                 {showBellDropdown && (
-                  <div className={`absolute top-11 z-35 w-72 rounded-2xl border border-slate-100 bg-white p-4 shadow-xl dark:border-slate-800 dark:bg-slate-800 ${isRTL ? 'left-0' : 'right-0'}`}>
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{activeTrans.urgentNotifications}</span>
-                      <button
-                        onClick={clearAll}
-                        className="text-[10px] text-sky-650 hover:underline dark:text-sky-400 cursor-pointer"
-                      >
-                        {lang === 'ar' ? 'مسح الكل' : lang === 'en' ? 'Clear all' : 'Tout effacer'}
-                      </button>
-                    </div>
-                    <div className="flex flex-col gap-2 max-h-60 overflow-y-auto">
-                      {notifications.length === 0 ? (
-                        <p className="py-4 text-center text-xs text-slate-400">لا توجد إشعارات حالياً</p>
-                      ) : (
-                        notifications.map((notif) => (
-                          <div
-                            key={notif.id}
-                            className={`rounded-xl p-2.5 text-xs transition-colors text-start ${
-                              notif.type === 'critical'
-                                ? 'bg-red-50 text-red-900 dark:bg-red-950/20 dark:text-red-300'
-                                : 'bg-amber-50 text-amber-900 dark:bg-amber-950/20 dark:text-amber-300'
-                            }`}
-                          >
-                            <div className="font-bold mb-0.5">{notif.title}</div>
-                            <div className="opacity-90 leading-relaxed text-[11px]">{notif.description}</div>
-                            <div className="mt-1 text-[9px] opacity-75">{notif.time}</div>
+                  <>
+                    {/* Backdrop to close dropdown on outside click */}
+                    <div
+                      className="fixed inset-0 z-30"
+                      onClick={() => setShowBellDropdown(false)}
+                    />
+                    <div className={`absolute top-11 z-40 w-80 rounded-2xl border border-slate-100 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800 overflow-hidden ${isRTL ? 'left-0' : 'right-0'}`}>
+                      {/* Header */}
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+                        <div className="flex items-center gap-2">
+                          <svg className="h-4 w-4 text-sky-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9m4.73 13a3 3 0 0 0 5.54 0" />
+                          </svg>
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                            {lang === 'ar' ? 'الإشعارات' : lang === 'en' ? 'Notifications' : 'Notifications'}
+                          </span>
+                          {notifications.length > 0 && (
+                            <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-300">
+                              {notifications.length}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => {
+                            clearAll();
+                            api.markAllNotificationsRead().catch(() => {});
+                            setUnreadCount(0);
+                          }}
+                          className="text-[10px] font-semibold text-sky-600 hover:text-sky-700 dark:text-sky-400 cursor-pointer transition-colors"
+                        >
+                          {lang === 'ar' ? 'مسح الكل' : lang === 'en' ? 'Clear all' : 'Tout effacer'}
+                        </button>
+                      </div>
+
+                      {/* Notification list */}
+                      <div className="flex flex-col max-h-80 overflow-y-auto">
+                        {notifLoading ? (
+                          <div className="flex items-center justify-center py-8 gap-2">
+                            <div className="h-4 w-4 rounded-full border-2 border-sky-500 border-t-transparent animate-spin" />
+                            <span className="text-xs text-slate-400">
+                              {lang === 'ar' ? 'جارٍ التحميل...' : 'Loading...'}
+                            </span>
                           </div>
-                        ))
-                      )}
+                        ) : notifications.length === 0 ? (
+                          <div className="flex flex-col items-center gap-2 py-10">
+                            <svg className="h-8 w-8 text-slate-300 dark:text-slate-600" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9m4.73 13a3 3 0 0 0 5.54 0" />
+                            </svg>
+                            <p className="text-xs text-slate-400">
+                              {lang === 'ar' ? 'لا توجد إشعارات' : lang === 'en' ? 'No notifications' : 'Aucune notification'}
+                            </p>
+                          </div>
+                        ) : (
+                          notifications.map((notif) => (
+                            <div
+                              key={notif.id}
+                              className={`flex gap-3 px-4 py-3 text-xs transition-colors border-b last:border-b-0 border-slate-50 dark:border-slate-700/50
+                                ${
+                                  notif.type === 'critical'
+                                    ? 'bg-red-50/60 dark:bg-red-950/10'
+                                    : notif.isRead
+                                      ? 'bg-white dark:bg-transparent'
+                                      : 'bg-sky-50/50 dark:bg-sky-950/10'
+                                }`}
+                            >
+                              {/* Icon */}
+                              <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                                notif.type === 'critical'
+                                  ? 'bg-red-100 dark:bg-red-950/30'
+                                  : 'bg-amber-100 dark:bg-amber-950/30'
+                              }`}>
+                                {notif.type === 'critical' ? (
+                                  <svg className="h-3.5 w-3.5 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                                  </svg>
+                                ) : (
+                                  <svg className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M10 2a6 6 0 00-6 6c0 5-3 7-3 7h18s-3-2-3-7a6 6 0 00-6-6zm0 16a2 2 0 01-2-2h4a2 2 0 01-2 2z" />
+                                  </svg>
+                                )}
+                              </div>
+
+                              {/* Content */}
+                              <div className="flex-1 min-w-0">
+                                <div className={`font-semibold leading-snug mb-0.5 ${
+                                  notif.type === 'critical'
+                                    ? 'text-red-800 dark:text-red-300'
+                                    : 'text-slate-800 dark:text-slate-100'
+                                }`}>
+                                  {notif.title}
+                                </div>
+                                <div className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-2">
+                                  {notif.description}
+                                </div>
+                                <div className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+                                  {notif.time}
+                                </div>
+                              </div>
+
+                              {/* Unread dot */}
+                              {!notif.isRead && (
+                                <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-sky-500" />
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
             </div>

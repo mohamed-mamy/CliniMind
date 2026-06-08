@@ -52,27 +52,14 @@ export default function Billing() {
     });
   };
 
-  const handleRecordPayment = (e: React.FormEvent) => {
+  const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!showPayModal) return;
 
-    // Simulate updating paid amount
-    const updatedInvoices = invoices.map((inv) => {
-      if (inv.id === showPayModal.id) {
-        const nextPaid = inv.paidAmount + paymentInput;
-        const nextRemaining = Math.max(0, inv.totalAmount - nextPaid);
-        const status = (nextPaid >= inv.totalAmount ? 'paid' : nextPaid > 0 ? 'partial' : 'unpaid') as Invoice['status'];
-        return {
-          ...inv,
-          paidAmount: nextPaid,
-          remainingAmount: nextRemaining,
-          status,
-        };
-      }
-      return inv;
-    });
-
-    setInvoices(updatedInvoices);
+    const res = await api.recordPayment(showPayModal.id, paymentInput);
+    if (res.success) {
+      loadInvoices();
+    }
     setPaymentInput(0);
     setShowPayModal(null);
   };
@@ -172,7 +159,21 @@ export default function Billing() {
                           </button>
                         )}
                         <button
-                          onClick={() => alert(lang === 'ar' ? 'تحميل الفاتورة PDF...' : 'Downloading PDF Invoice...')}
+                          onClick={async () => {
+                            try {
+                              const blob = await api.downloadInvoicePdf(inv.id);
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `invoice-${inv.invoiceNumber}.pdf`;
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                              URL.revokeObjectURL(url);
+                            } catch {
+                              alert(lang === 'ar' ? 'فشل تحميل الفاتورة' : 'Failed to download invoice');
+                            }
+                          }}
                           className="bg-slate-50 text-slate-650 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 rounded-xl px-3 py-1 font-bold hover:scale-105 active:scale-95 cursor-pointer"
                         >
                           {lang === 'ar' ? 'تصدير PDF' : 'Export PDF'}

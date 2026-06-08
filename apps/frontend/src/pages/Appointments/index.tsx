@@ -32,6 +32,7 @@ export default function Appointments() {
   const { lang, user } = useAuth();
   const activeTrans = t[lang];
   const isEditable = user?.role === 'receptionist' || user?.role === 'director';
+  const canChangeStatus = user?.role === 'receptionist' || user?.role === 'director' || user?.role === 'doctor';
   const isRTL = activeTrans.dir === 'rtl';
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -46,7 +47,8 @@ export default function Appointments() {
     if (user?.role !== 'doctor') {
       api.getUsers({ role: 'doctor' }).then(res => {
         if (res.success) setDoctors(res.data);
-      });
+        else console.warn('Failed to load doctors:', res.error);
+      }).catch((err) => console.error('Failed to load doctors:', err));
     }
   }, [user]);
 
@@ -241,7 +243,7 @@ export default function Appointments() {
                           <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${STATUS_COLORS[appt.status]}`}>
                             {statusLabels[appt.status]}
                           </span>
-                          {isEditable && (
+                          {canChangeStatus && (
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); cycleStatus(appt); }}
@@ -310,10 +312,10 @@ function AddAppointmentModal({
   useEffect(() => {
     api.getUsers({ role: 'doctor' }).then(res => {
       if (res.success) setDoctors(res.data);
-    });
+    }).catch((err) => console.error('Failed to load doctors:', err));
     api.getPatients().then(res => {
       if (res.success) setPatients(res.data);
-    });
+    }).catch((err) => console.error('Failed to load patients:', err));
   }, []);
 
   const filteredPatients = patients.filter(p =>

@@ -255,6 +255,18 @@ exports.updateAppointment = async (id, data, currentUser) => {
 };
 
 exports.updateAppointmentStatus = async (id, status, currentUser) => {
+  if (currentUser.role === 'doctor') {
+    const appointment = await Appointment.findById(id);
+    if (!appointment) {
+      throw new AppError('Appointment not found', 'NOT_FOUND', 404);
+    }
+    if (appointment.doctorId.toString() !== currentUser.userId.toString()) {
+      throw new AppError('Cannot update another doctor\'s appointment', 'FORBIDDEN', 403);
+    }
+    if (status !== 'completed') {
+      throw new AppError('Doctor can only mark appointments as completed', 'FORBIDDEN', 403);
+    }
+  }
   return exports.updateAppointment(id, { status }, currentUser);
 };
 

@@ -50,7 +50,7 @@ router.put(
 router.put(
   '/:id/status',
   requireAuth,
-  requireRoles(['director', 'receptionist']),
+  requireRoles(['director', 'receptionist', 'doctor']),
   validate(updateAppointmentStatusSchema),
   appointmentController.updateAppointmentStatus
 );

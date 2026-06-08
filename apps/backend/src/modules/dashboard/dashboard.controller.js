@@ -44,7 +44,7 @@ const getDirectorDashboard = async (req, res, next) => {
       recentAppointments,
       recentExpenses
     ] = await Promise.all([
-      Appointment.find({ date: { $gte: today, $lt: tomorrow } }).lean(),
+      Appointment.find({ date: { $gte: today, $lt: tomorrow }, status: { $in: ['scheduled', 'confirmed'] } }).lean(),
       Invoice.aggregate([
         { $match: { createdAt: { $gte: month } } }, 
         { $group: { _id: null, total: { $sum: '$totalAmount' }, unpaid: { $sum: '$remainingAmount' } } }
@@ -103,7 +103,7 @@ const getDoctorDashboard = async (req, res, next) => {
       success: true,
       data: {
         stats: {
-          todayAppointments: await Appointment.countDocuments({ doctorId: req.user.userId, date: { $gte: today, $lt: tomorrow } }),
+          todayAppointments: await Appointment.countDocuments({ doctorId: req.user.userId, date: { $gte: today, $lt: tomorrow }, status: { $in: ['scheduled', 'confirmed'] } }),
           todayCompleted: await Appointment.countDocuments({ doctorId: req.user.userId, date: { $gte: today, $lt: tomorrow }, status: 'completed' }),
           weekAppointments: await Appointment.countDocuments({ doctorId: req.user.userId, date: { $gte: week } }),
           pendingLabResults: await LabRequest.countDocuments({ doctorId: req.user.userId, status: 'pending' }),
@@ -135,7 +135,7 @@ const getReceptionistDashboard = async (req, res, next) => {
       success: true,
       data: {
         stats: {
-          todayAppointments: await Appointment.countDocuments({ date: { $gte: today, $lt: tomorrow } }),
+          todayAppointments: await Appointment.countDocuments({ date: { $gte: today, $lt: tomorrow }, status: { $in: ['scheduled', 'confirmed'] } }),
           todayCheckedIn: await Appointment.countDocuments({ date: { $gte: today, $lt: tomorrow }, status: { $in: ['confirmed', 'completed'] } }),
           todayRevenue: todayInvoices[0]?.total || 0,
           waitingRoomCount: await Appointment.countDocuments({ date: { $gte: today, $lt: tomorrow }, status: 'confirmed' })

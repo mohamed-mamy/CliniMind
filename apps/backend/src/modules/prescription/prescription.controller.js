@@ -60,6 +60,7 @@ const getPrescriptionPdf = async (req, res, next) => {
     res.setHeader('Content-Disposition', `attachment; filename=prescription-${id}.pdf`);
     
     doc.pipe(res);
+    doc.end();
   } catch (error) {
     if (error.status === 404) {
       return sendError(res, 404, 'NOT_FOUND', error.message);

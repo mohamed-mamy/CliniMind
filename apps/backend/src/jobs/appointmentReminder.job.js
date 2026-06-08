@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const Appointment = require('../modules/appointment/appointment.model');
 const Notification = require('../modules/notification/notification.model');
 const Patient = require('../modules/patient/patient.model');
+const { emitNotification } = require('../socket');
 
 // Run daily at 09:00 AM
 cron.schedule('0 9 * * *', async () => {
@@ -34,15 +35,19 @@ cron.schedule('0 9 * * *', async () => {
           $setOnInsert: {
             userId: appt.doctorId._id,
             type: 'appointment_reminder',
-            title: 'Rappel de rendez-vous',
-            body: `Vous avez un rendez-vous avec ${appt.patientId.fullName} demain à ${appt.timeSlot}.`,
+            title: 'تذكير موعد / Rappel de rendez-vous',
+            body: `لديك موعد غداً مع ${appt.patientId.fullName} في ${appt.timeSlot}`,
             data: { appointmentId: appt._id }
           }
         },
         { upsert: true, new: true }
       );
 
-      if (result) remindedCount++;
+      if (result) {
+        remindedCount++;
+        // Emit real-time socket notification to the doctor if online
+        emitNotification(appt.doctorId._id, result);
+      }
 
       // 2. Send email to patient (placeholder for email service)
       // if (appt.patientId.email) {

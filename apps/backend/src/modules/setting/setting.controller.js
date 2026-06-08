@@ -5,14 +5,15 @@ const { updateSettingSchema } = require('./setting.validation');
 const SINGLETON_FILTER = {};
 
 /**
- * Sanitize settings to redact any sensitive fields before sending to client.
+ * Sanitize settings to mask sensitive fields before sending to client.
  */
 const sanitizeSettings = (settings) => {
   const sanitized = { ...settings };
-  // Redact any leftover SMTP secrets (defensive — they should not be in DB)
   if (sanitized.smtpConfig) {
-    const { user, pass, ...safeSmtp } = sanitized.smtpConfig;
-    sanitized.smtpConfig = safeSmtp;
+    sanitized.smtpConfig = { ...sanitized.smtpConfig };
+    if (sanitized.smtpConfig.smtpPass) {
+      sanitized.smtpConfig.smtpPass = '••••••••';
+    }
   }
   return sanitized;
 };

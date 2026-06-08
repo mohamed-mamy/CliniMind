@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
 const LabRequest = require('./labRequest.model');
 const Notification = require('../notification/notification.model');
-const { emitNewLabRequest, emitCriticalResult } = require('../../socket');
+const User = require('../user/user.model');
+const { emitNewLabRequest, emitCriticalResult, emitNotification } = require('../../socket');
 
 // Load Settings model with correct path
 let Settings;
@@ -25,11 +26,42 @@ const createLabRequest = async (data, doctorId) => {
   // Note: Invoice items creation should be hooked here if billing is enabled
   // billingService.addInvoiceItem(...)
 
-  // Emit real-time notification for lab:new_request
-  emitNewLabRequest(labRequest);
+  // Populate patient name for real-time notification
+  const populated = await LabRequest.findById(labRequest._id)
+    .populate('patientId', 'fullName')
+    .populate('doctorId', 'fullName');
 
-  return labRequest;
+  // Emit real-time room broadcast (refreshes the lab technician's request list)
+  emitNewLabRequest(populated);
+
+  // Create a persistent DB notification for every active lab technician
+  // and emit a per-user socket event so the bell badge lights up immediately
+  try {
+    const labTechs = await User.find({ role: 'lab_technician', isActive: true }).select('_id').lean();
+    const patientName = populated.patientId?.fullName;
+    const priorityTag = data.priority === 'urgent' ? ' 🚨 عاجل' : '';
+
+    await Promise.all(
+      labTechs.map(async (tech) => {
+        const notif = await Notification.create({
+          userId: tech._id,
+          type: 'new_lab_request',
+          title: `طلب فحص جديد${priorityTag}`,
+          body: patientName
+            ? `طلب فحص جديد للمريض: ${patientName}`
+            : `تم استلام طلب فحص مختبر جديد #${populated._id}`,
+          data: { labRequestId: populated._id }
+        });
+        emitNotification(tech._id, notif);
+      })
+    );
+  } catch (notifErr) {
+    console.error('[LabService] Lab technician notification failed (non-fatal):', notifErr.message);
+  }
+
+  return populated;
 };
+
 
 const listLabRequests = async (query, userRole, userId) => {
   const { page = 1, limit = 20, patientId, status, priority } = query;
@@ -154,18 +186,41 @@ const enterResults = async (id, data, technicianId) => {
 
   await labRequest.save();
 
+  // Populate patient name before emitting
+  const populated = await LabRequest.findById(labRequest._id)
+    .populate('patientId', 'fullName')
+    .populate('doctorId', 'fullName');
+
+  const doctorId = populated.doctorId?._id || populated.doctorId;
+
   if (hasCritical) {
-    // Emit critical result to the doctor via Socket.IO
-    emitCriticalResult(labRequest.doctorId, labRequest);
+    // Emit critical result to the doctor via Socket.IO (triggers special critical alert UI)
+    emitCriticalResult(doctorId, populated);
 
     // Create persistent notification for the doctor
-    await Notification.create({
-      userId: labRequest.doctorId,
+    const criticalNotif = await Notification.create({
+      userId: doctorId,
       type: 'critical_result',
-      title: 'Résultats critiques détectés',
-      body: `Des résultats critiques ont été détectés pour la demande d'analyse #${labRequest._id}`,
-      data: { labRequestId: labRequest._id, criticalResults: criticalResultsDetected }
+      title: 'نتيجة حرجة / Résultat critique',
+      body: populated.patientId?.fullName
+        ? `نتيجة حرجة للمريض: ${populated.patientId.fullName}`
+        : `Des résultats critiques ont été détectés pour la demande d'analyse #${populated._id}`,
+      data: { labRequestId: populated._id, criticalResults: criticalResultsDetected }
     });
+    // Also emit notification:new so the bell badge lights up
+    emitNotification(doctorId, criticalNotif);
+  } else {
+    // Notify doctor that results are ready
+    const notif = await Notification.create({
+      userId: doctorId,
+      type: 'results_ready',
+      title: 'نتائج الفحص جاهزة / Résultats prêts',
+      body: populated.patientId?.fullName
+        ? `نتائج فحص المريض ${populated.patientId.fullName} جاهزة`
+        : `Les résultats d'analyse pour la demande #${populated._id} sont disponibles.`,
+      data: { labRequestId: populated._id }
+    });
+    emitNotification(doctorId, notif);
   }
 
   return {

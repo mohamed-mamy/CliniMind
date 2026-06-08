@@ -13,6 +13,8 @@ export default function Settings() {
   const [clinicAddress, setClinicAddress] = useState('');
   const [clinicFee, setClinicFee] = useState(0);
   const [smtpHost, setSmtpHost] = useState('');
+  const [smtpUser, setSmtpUser] = useState('');
+  const [smtpPass, setSmtpPass] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -24,6 +26,8 @@ export default function Settings() {
         setClinicAddress(res.data.clinicAddress || '');
         setClinicFee(res.data.defaultConsultationFee ?? 0);
         if (res.data.smtpConfig?.host) setSmtpHost(res.data.smtpConfig.host);
+        if (res.data.smtpConfig?.smtpUser) setSmtpUser(res.data.smtpConfig.smtpUser);
+        if (res.data.smtpConfig?.smtpPass && res.data.smtpConfig.smtpPass !== '••••••••') setSmtpPass(res.data.smtpConfig.smtpPass);
       }
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
@@ -33,11 +37,16 @@ export default function Settings() {
     setMessage('');
     setSaving(true);
     try {
-      const res = await api.updateSettings({
+      const body: any = {
         clinicName,
         clinicAddress,
         defaultConsultationFee: clinicFee,
-      });
+      };
+      if (smtpHost || smtpUser) {
+        body.smtpConfig = { host: smtpHost, smtpUser };
+        if (smtpPass) body.smtpConfig.smtpPass = smtpPass;
+      }
+      const res = await api.updateSettings(body);
       if (res.success) {
         authStore.setClinicName(clinicName);
         setMessage(lang === 'ar' ? 'تم حفظ الإعدادات بنجاح!' : 'Settings saved successfully!');
@@ -129,9 +138,10 @@ export default function Settings() {
                   <label className="text-[11px] font-bold text-slate-400 uppercase">{lang === 'ar' ? 'اسم المستخدم / البريد' : 'Username email'}</label>
                   <input
                     type="email"
-                    disabled
-                    placeholder="••••••••••••"
-                    className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-100 p-3 text-sm outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400"
+                    value={smtpUser}
+                    onChange={(e) => setSmtpUser(e.target.value)}
+                    placeholder="noreply@example.com"
+                    className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none focus:border-sky-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
                   />
                 </div>
               </div>
@@ -140,12 +150,13 @@ export default function Settings() {
                 <label className="text-[11px] font-bold text-slate-400 uppercase">{lang === 'ar' ? 'كلمة المرور' : 'Password'}</label>
                 <input
                   type="password"
-                  disabled
+                  value={smtpPass}
+                  onChange={(e) => setSmtpPass(e.target.value)}
                   placeholder="••••••••••••"
-                  className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-100 p-3 text-sm outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400"
+                  className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none focus:border-sky-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
                 />
                 <span className="text-[10px] text-slate-400 mt-1 block">
-                  {lang === 'ar' ? 'يتم تشفير وحجب كلمة المرور تلقائياً لحماية خصوصية بيانات خادم البريد.' : 'SMTP secrets are masked for safety.'}
+                  {lang === 'ar' ? 'كلمة مرور خادم البريد الإلكتروني.' : 'SMTP email password.'}
                 </span>
               </div>
             </div>

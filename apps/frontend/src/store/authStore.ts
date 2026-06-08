@@ -17,7 +17,7 @@ interface AuthData {
 let currentAuth: AuthData | null = null;
 let currentLang: LangKey = 'ar';
 let isDarkTheme: boolean = false;
-let currentClinicName: string = 'CliniMind';
+let currentClinicName: string = '';
 
 const listeners = new Set<() => void>();
 

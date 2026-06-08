@@ -4,14 +4,23 @@ import { t, LangKey } from '../../services/localization';
 import { authService } from '../../services/authService';
 import { api } from '../../services/api';
 
+type LoginView = 'login' | 'forgot' | 'verify' | 'reset';
+
 export default function Login() {
   const { lang, setLang, setAuth } = useAuth();
+  const [view, setView] = useState<LoginView>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loginErrorMsg, setLoginErrorMsg] = useState('');
   const [showLangDropdown, setShowLangDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [clinicName, setClinicName] = useState('CliniMind');
+  const [clinicName, setClinicName] = useState(lang === 'ar' ? 'العيادة' : 'Clinic');
+
+  // Forgot password fields
+  const [forgotUsername, setForgotUsername] = useState('');
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => {
     api.getPublicSettings().then(res => {
@@ -45,94 +54,244 @@ export default function Login() {
     }
   };
 
+  const handleForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotUsername.trim()) return;
+    setLoading(true);
+    setLoginErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const res = await api.forgotPassword(forgotUsername);
+      if (res.success) {
+        setSuccessMsg(lang === 'ar' ? 'تم إرسال الرمز إلى بريدك الإلكتروني.' : 'OTP sent to your email.');
+        setView('verify');
+      }
+    } catch (err: any) {
+      setLoginErrorMsg(err?.response?.data?.error?.message || err?.message || 'Error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otp.trim()) return;
+    setLoading(true);
+    setLoginErrorMsg('');
+    try {
+      const res = await api.verifyOtp(forgotUsername, otp);
+      if (res.success) {
+        setView('reset');
+      }
+    } catch (err: any) {
+      setLoginErrorMsg(err?.response?.data?.error?.message || err?.message || 'Invalid OTP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword.trim()) return;
+    setLoading(true);
+    setLoginErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const res = await api.resetPassword(forgotUsername, otp, newPassword);
+      if (res.success) {
+        setSuccessMsg(lang === 'ar' ? 'تم تغيير كلمة المرور بنجاح. يمكنك تسجيل الدخول الآن.' : 'Password reset successfully. You can now login.');
+        setTimeout(() => { setView('login'); setOtp(''); setNewPassword(''); }, 3000);
+      }
+    } catch (err: any) {
+      setLoginErrorMsg(err?.response?.data?.error?.message || err?.message || 'Error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const changeLanguage = (newLang: LangKey) => {
     setLang(newLang);
     setShowLangDropdown(false);
   };
 
+  const backToLogin = () => { setView('login'); setLoginErrorMsg(''); setSuccessMsg(''); };
+
   return (
     <div dir={activeTrans.dir} className="flex-1 w-full flex items-center justify-center bg-radial-at-t from-slate-800 to-slate-950 p-4 relative overflow-hidden min-h-screen">
-      {/* Glowing abstract backgrounds */}
       <div className="absolute h-96 w-96 rounded-full bg-sky-500/10 blur-3xl top-1/4 -right-10 pointer-events-none"></div>
       <div className="absolute h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl bottom-1/4 -left-10 pointer-events-none"></div>
 
-      {/* Login Card Form */}
       <div className="w-full max-w-sm rounded-[32px] border border-slate-800 bg-slate-900/90 p-8 shadow-2xl backdrop-blur-md relative z-10 text-center animate-fadeIn">
         
-        {/* Clinic Logo Title */}
         <h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-blue-500">
           {clinicName}
         </h2>
         <p className="mt-3 text-xs leading-relaxed text-slate-400">
-          {activeTrans.loginSubtitle}
+          {view === 'login' ? activeTrans.loginSubtitle : 
+           view === 'forgot' ? (lang === 'ar' ? 'أدخل اسم المستخدم لإعادة تعيين كلمة المرور' : 'Enter your username to reset password') :
+           view === 'verify' ? (lang === 'ar' ? 'أدخل الرمز المكون من 6 أرقام' : 'Enter the 6-digit code') :
+           (lang === 'ar' ? 'أدخل كلمة المرور الجديدة' : 'Enter your new password')}
         </p>
 
-        <form onSubmit={handleLoginSubmit} className="mt-8 space-y-4">
-          {/* Username Input */}
-          <div className="relative">
-            <input
-              type="text"
-              required
-              disabled={loading}
-              placeholder={activeTrans.usernamePlaceholder}
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full rounded-2xl border border-slate-700 bg-slate-800/60 py-3.5 ps-4 pe-12 text-sm text-slate-200 placeholder-slate-500 outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-start"
-            />
-            <span className="absolute top-1/2 -translate-y-1/2 end-4 text-slate-500">
-              <svg className="h-4 w-4 stroke-current stroke-2 fill-none" viewBox="0 0 24 24">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            </span>
-          </div>
-
-          {/* Password Input */}
-          <div className="relative">
-            <input
-              type="password"
-              required
-              disabled={loading}
-              placeholder={activeTrans.passwordPlaceholder}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-2xl border border-slate-700 bg-slate-800/60 py-3.5 ps-4 pe-12 text-sm text-slate-200 placeholder-slate-500 outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-start"
-            />
-            <span className="absolute top-1/2 -translate-y-1/2 end-4 text-slate-500">
-              <svg className="h-4 w-4 stroke-current stroke-2 fill-none" viewBox="0 0 24 24">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-              </svg>
-            </span>
-          </div>
-
-          {/* Forgot password */}
-          <div className="text-start">
-            <a href="#" className="text-xs text-slate-400 hover:text-sky-400 transition-colors">
-              {activeTrans.forgotPassword}
-            </a>
-          </div>
-
-          {/* Error Message */}
-          {loginErrorMsg && (
-            <div className="rounded-xl bg-red-900/30 p-3 text-xs text-red-400 text-center border border-red-900/40">
-              {loginErrorMsg}
+        {/* Login Form */}
+        {view === 'login' && (
+          <form onSubmit={handleLoginSubmit} className="mt-8 space-y-4">
+            <div className="relative">
+              <input
+                type="text"
+                required
+                disabled={loading}
+                placeholder={activeTrans.usernamePlaceholder}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full rounded-2xl border border-slate-700 bg-slate-800/60 py-3.5 ps-4 pe-12 text-sm text-slate-200 placeholder-slate-500 outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-start"
+              />
+              <span className="absolute top-1/2 -translate-y-1/2 end-4 text-slate-500">
+                <svg className="h-4 w-4 stroke-current stroke-2 fill-none" viewBox="0 0 24 24">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </span>
             </div>
-          )}
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-2xl bg-sky-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-sky-600/20 hover:bg-sky-500 hover:shadow-sky-500/30 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            {loading ? (
-              <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-            ) : (
-              activeTrans.loginBtn
+            <div className="relative">
+              <input
+                type="password"
+                required
+                disabled={loading}
+                placeholder={activeTrans.passwordPlaceholder}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-2xl border border-slate-700 bg-slate-800/60 py-3.5 ps-4 pe-12 text-sm text-slate-200 placeholder-slate-500 outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-start"
+              />
+              <span className="absolute top-1/2 -translate-y-1/2 end-4 text-slate-500">
+                <svg className="h-4 w-4 stroke-current stroke-2 fill-none" viewBox="0 0 24 24">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              </span>
+            </div>
+
+            <div className="text-start">
+              <button type="button" onClick={() => setView('forgot')} className="text-xs text-slate-400 hover:text-sky-400 transition-colors cursor-pointer bg-transparent border-0 p-0">
+                {activeTrans.forgotPassword}
+              </button>
+            </div>
+
+            {loginErrorMsg && (
+              <div className="rounded-xl bg-red-900/30 p-3 text-xs text-red-400 text-center border border-red-900/40">
+                {loginErrorMsg}
+              </div>
             )}
-          </button>
-        </form>
+
+            <button type="submit" disabled={loading} className="w-full rounded-2xl bg-sky-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-sky-600/20 hover:bg-sky-500 hover:shadow-sky-500/30 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer">
+              {loading ? (
+                <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+              ) : activeTrans.loginBtn}
+            </button>
+          </form>
+        )}
+
+        {/* Forgot Password Form */}
+        {view === 'forgot' && (
+          <form onSubmit={handleForgotSubmit} className="mt-8 space-y-4">
+            <div className="relative">
+              <input
+                type="text"
+                required
+                disabled={loading}
+                placeholder={activeTrans.usernamePlaceholder}
+                value={forgotUsername}
+                onChange={(e) => setForgotUsername(e.target.value)}
+                className="w-full rounded-2xl border border-slate-700 bg-slate-800/60 py-3.5 ps-4 pe-12 text-sm text-slate-200 placeholder-slate-500 outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-start"
+              />
+            </div>
+
+            {loginErrorMsg && (
+              <div className="rounded-xl bg-red-900/30 p-3 text-xs text-red-400 text-center border border-red-900/40">{loginErrorMsg}</div>
+            )}
+            {successMsg && (
+              <div className="rounded-xl bg-emerald-900/30 p-3 text-xs text-emerald-400 text-center border border-emerald-900/40">{successMsg}</div>
+            )}
+
+            <button type="submit" disabled={loading} className="w-full rounded-2xl bg-sky-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-sky-600/20 hover:bg-sky-500 active:scale-98 transition-all cursor-pointer">
+              {loading ? (
+                <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+              ) : (lang === 'ar' ? 'إرسال الرمز' : 'Send OTP')}
+            </button>
+
+            <button type="button" onClick={backToLogin} className="w-full text-xs text-slate-400 hover:text-sky-400 transition-colors cursor-pointer bg-transparent border-0">
+              {lang === 'ar' ? 'العودة لتسجيل الدخول' : 'Back to login'}
+            </button>
+          </form>
+        )}
+
+        {/* Verify OTP Form */}
+        {view === 'verify' && (
+          <form onSubmit={handleVerifyOtp} className="mt-8 space-y-4">
+            <div className="relative">
+              <input
+                type="text"
+                required
+                maxLength={6}
+                disabled={loading}
+                placeholder="000000"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="w-full rounded-2xl border border-slate-700 bg-slate-800/60 py-3.5 ps-4 pe-12 text-sm text-slate-200 placeholder-slate-500 outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-center tracking-[8px] font-bold"
+              />
+            </div>
+
+            {loginErrorMsg && (
+              <div className="rounded-xl bg-red-900/30 p-3 text-xs text-red-400 text-center border border-red-900/40">{loginErrorMsg}</div>
+            )}
+
+            <button type="submit" disabled={loading} className="w-full rounded-2xl bg-sky-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-sky-600/20 hover:bg-sky-500 active:scale-98 transition-all cursor-pointer">
+              {loading ? (
+                <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+              ) : (lang === 'ar' ? 'تحقق' : 'Verify')}
+            </button>
+
+            <button type="button" onClick={backToLogin} className="w-full text-xs text-slate-400 hover:text-sky-400 transition-colors cursor-pointer bg-transparent border-0">
+              {lang === 'ar' ? 'العودة لتسجيل الدخول' : 'Back to login'}
+            </button>
+          </form>
+        )}
+
+        {/* Reset Password Form */}
+        {view === 'reset' && (
+          <form onSubmit={handleResetPassword} className="mt-8 space-y-4">
+            <div className="relative">
+              <input
+                type="password"
+                required
+                minLength={4}
+                disabled={loading}
+                placeholder={lang === 'ar' ? 'كلمة المرور الجديدة' : 'New password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full rounded-2xl border border-slate-700 bg-slate-800/60 py-3.5 ps-4 pe-12 text-sm text-slate-200 placeholder-slate-500 outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-start"
+              />
+            </div>
+
+            {loginErrorMsg && (
+              <div className="rounded-xl bg-red-900/30 p-3 text-xs text-red-400 text-center border border-red-900/40">{loginErrorMsg}</div>
+            )}
+            {successMsg && (
+              <div className="rounded-xl bg-emerald-900/30 p-3 text-xs text-emerald-400 text-center border border-emerald-900/40">{successMsg}</div>
+            )}
+
+            <button type="submit" disabled={loading} className="w-full rounded-2xl bg-sky-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-sky-600/20 hover:bg-sky-500 active:scale-98 transition-all cursor-pointer">
+              {loading ? (
+                <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+              ) : (lang === 'ar' ? 'إعادة تعيين كلمة المرور' : 'Reset Password')}
+            </button>
+
+            <button type="button" onClick={backToLogin} className="w-full text-xs text-slate-400 hover:text-sky-400 transition-colors cursor-pointer bg-transparent border-0">
+              {lang === 'ar' ? 'العودة لتسجيل الدخول' : 'Back to login'}
+            </button>
+          </form>
+        )}
 
         {/* Globe Language selector */}
         <div className="mt-8 flex justify-start">
@@ -149,30 +308,11 @@ export default function Login() {
               <span>{lang === 'ar' ? 'العربية' : lang === 'en' ? 'English' : 'Français'}</span>
             </button>
 
-            {/* Dropdown Options */}
             {showLangDropdown && (
               <div className="absolute bottom-6 left-0 z-30 w-32 rounded-xl border border-slate-800 bg-slate-850 p-1.5 shadow-xl text-left">
-                <button
-                  type="button"
-                  onClick={() => changeLanguage('ar')}
-                  className="w-full text-right rounded-lg px-2.5 py-1.5 text-xs text-slate-300 hover:bg-slate-700 hover:text-white cursor-pointer"
-                >
-                  العربية
-                </button>
-                <button
-                  type="button"
-                  onClick={() => changeLanguage('en')}
-                  className="w-full text-left rounded-lg px-2.5 py-1.5 text-xs text-slate-300 hover:bg-slate-700 hover:text-white cursor-pointer"
-                >
-                  English
-                </button>
-                <button
-                  type="button"
-                  onClick={() => changeLanguage('fr')}
-                  className="w-full text-left rounded-lg px-2.5 py-1.5 text-xs text-slate-300 hover:bg-slate-700 hover:text-white cursor-pointer"
-                >
-                  Français
-                </button>
+                <button type="button" onClick={() => changeLanguage('ar')} className="w-full text-right rounded-lg px-2.5 py-1.5 text-xs text-slate-300 hover:bg-slate-700 hover:text-white cursor-pointer">العربية</button>
+                <button type="button" onClick={() => changeLanguage('en')} className="w-full text-left rounded-lg px-2.5 py-1.5 text-xs text-slate-300 hover:bg-slate-700 hover:text-white cursor-pointer">English</button>
+                <button type="button" onClick={() => changeLanguage('fr')} className="w-full text-left rounded-lg px-2.5 py-1.5 text-xs text-slate-300 hover:bg-slate-700 hover:text-white cursor-pointer">Français</button>
               </div>
             )}
           </div>

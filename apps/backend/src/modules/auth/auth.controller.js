@@ -46,9 +46,39 @@ const getMe = async (req, res, next) => {
   }
 };
 
+const forgotPassword = async (req, res, next) => {
+  try {
+    const result = await authService.forgotPassword(req.body.username);
+    return sendSuccess(res, 200, result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const verifyOtp = async (req, res, next) => {
+  try {
+    const result = await authService.verifyOtp(req.body.username, req.body.otp);
+    return sendSuccess(res, 200, result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const result = await authService.resetPassword(req.body.username, req.body.otp, req.body.newPassword);
+    return sendSuccess(res, 200, result);
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   login,
   refresh,
   logout,
-  getMe
+  getMe,
+  forgotPassword,
+  verifyOtp,
+  resetPassword
 };

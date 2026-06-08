@@ -176,7 +176,7 @@ export interface ClinicSettings {
   clinicEmail?: string;
   logoUrl?: string;
   defaultConsultationFee?: number;
-  smtpConfig?: { host?: string; port?: number };
+  smtpConfig?: { host?: string; port?: number; smtpUser?: string; smtpPass?: string };
   criticalThresholds?: Record<string, { min: number; max: number; unit: string }>;
 }
 
@@ -285,6 +285,13 @@ export const api = {
     return { success: true, data: mapExpense(res.data.data), error: null };
   },
 
+  updateExpense: async (id: string, data: Partial<Omit<Expense, 'id'>>): Promise<ApiResponse<Expense>> => {
+    const body: Record<string, any> = { ...data };
+    if (body.date) body.date = new Date(body.date).toISOString();
+    const res = await axios.put(`/v1/expenses/${id}`, body, { headers: authHeaders() });
+    return { success: true, data: mapExpense(res.data.data), error: null };
+  },
+
   deleteExpense: async (id: string): Promise<ApiResponse<string>> => {
     await axios.delete(`/v1/expenses/${id}`, { headers: authHeaders() });
     return { success: true, data: id, error: null };
@@ -293,6 +300,19 @@ export const api = {
   getInvoices: async (): Promise<ApiResponse<Invoice[]>> => {
     const res = await axios.get('/v1/invoices', { headers: authHeaders() });
     return { success: true, data: res.data.data.map(mapInvoice), error: null, meta: res.data.meta };
+  },
+
+  recordPayment: async (id: string, amount: number, paymentMethod: 'cash' | 'card' | 'transfer' = 'cash'): Promise<ApiResponse<Invoice>> => {
+    const res = await axios.post(`/v1/invoices/${id}/payment`, { amount, paymentMethod }, { headers: authHeaders() });
+    return { success: true, data: mapInvoice(res.data.data.invoice), error: null };
+  },
+
+  downloadInvoicePdf: async (id: string): Promise<Blob> => {
+    const res = await axios.get(`/v1/invoices/${id}/pdf`, {
+      headers: authHeaders(),
+      responseType: 'blob',
+    });
+    return res.data;
   },
 
   createInvoice: async (invoice: Omit<Invoice, 'id' | 'invoiceNumber' | 'status' | 'remainingAmount'>): Promise<ApiResponse<Invoice>> => {
@@ -368,6 +388,42 @@ export const api = {
     return { success: true, data: res.data.data, error: null };
   },
 
+  getDirectorDashboard: async (): Promise<ApiResponse<{
+    stats: {
+      todayRevenue: number;
+      todayAppointments: number;
+      monthlyRevenue: number;
+      monthlyExpenses: number;
+      monthlyProfit: number;
+      pendingAppointments: number;
+      unpaidInvoices: number;
+      totalPatients: number;
+      criticalResultsUnread: number;
+    };
+    recentAppointments: any[];
+    recentExpenses: any[];
+    lowStockAlert: null;
+  }>> => {
+    const res = await axios.get('/v1/dashboard/director', { headers: authHeaders() });
+    return { success: true, data: res.data.data, error: null };
+  },
+
+  getDoctorDashboard: async (): Promise<ApiResponse<{
+    stats: {
+      todayAppointments: number;
+      todayCompleted: number;
+      weekAppointments: number;
+      pendingLabResults: number;
+      unreadNotifications: number;
+    };
+    todayAgenda: Appointment[];
+    criticalResults: any[];
+    recentPatients: any[];
+  }>> => {
+    const res = await axios.get('/v1/dashboard/doctor', { headers: authHeaders() });
+    return { success: true, data: res.data.data, error: null };
+  },
+
   getPublicSettings: async (): Promise<ApiResponse<{ clinicName: string }>> => {
     const res = await axios.get('/v1/settings/public');
     return res.data;
@@ -389,5 +445,47 @@ export const api = {
   }>> => {
     const res = await axios.get('/v1/reports/revenue-trends', { headers: authHeaders(), params: { days } });
     return { success: true, data: res.data.data, error: null };
+  },
+
+  forgotPassword: async (username: string): Promise<ApiResponse<{ message: string }>> => {
+    const res = await axios.post('/v1/auth/forgot-password', { username });
+    return { success: true, data: res.data.data, error: null };
+  },
+
+  verifyOtp: async (username: string, otp: string): Promise<ApiResponse<{ message: string }>> => {
+    const res = await axios.post('/v1/auth/verify-otp', { username, otp });
+    return { success: true, data: res.data.data, error: null };
+  },
+
+  resetPassword: async (username: string, otp: string, newPassword: string): Promise<ApiResponse<{ message: string }>> => {
+    const res = await axios.post('/v1/auth/reset-password', { username, otp, newPassword });
+    return { success: true, data: res.data.data, error: null };
+  },
+
+  getNotifications: async (page = 1, limit = 30): Promise<ApiResponse<{
+    notifications: { _id: string; type: string; title: string; body: string; isRead: boolean; createdAt: string; data?: any }[];
+    unreadCount: number;
+    total: number;
+  }>> => {
+    const res = await axios.get('/v1/notifications', { headers: authHeaders(), params: { page, limit } });
+    return {
+      success: true,
+      data: {
+        notifications: res.data.data || [],
+        unreadCount: res.data.meta?.unreadCount ?? 0,
+        total: res.data.meta?.total ?? 0,
+      },
+      error: null,
+    };
+  },
+
+  markNotificationRead: async (id: string): Promise<ApiResponse<null>> => {
+    await axios.patch(`/v1/notifications/${id}/read`, {}, { headers: authHeaders() });
+    return { success: true, data: null, error: null };
+  },
+
+  markAllNotificationsRead: async (): Promise<ApiResponse<null>> => {
+    await axios.patch('/v1/notifications/read-all', {}, { headers: authHeaders() });
+    return { success: true, data: null, error: null };
   },
 };

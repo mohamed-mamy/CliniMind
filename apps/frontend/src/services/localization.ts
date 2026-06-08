@@ -32,7 +32,7 @@ export const t = {
     last7Days: "آخر 7 أيام",
     newAlerts: "جديد",
     today: "اليوم",
-    currency: "ريال",
+    currency: "أوقية",
     // Patients
     searchPlaceholder: "البحث بالاسم، رقم الملف، أو الهاتف...",
     addPatient: "إضافة مريض",
@@ -118,7 +118,7 @@ export const t = {
     last7Days: "Last 7 Days",
     newAlerts: "new",
     today: "Today",
-    currency: "SAR",
+    currency: "MRU",
     // Patients
     searchPlaceholder: "Search by name, file number, or phone...",
     addPatient: "Add Patient",
@@ -204,7 +204,7 @@ export const t = {
     last7Days: "7 Derniers Jours",
     newAlerts: "nouveau",
     today: "Aujourd'hui",
-    currency: "SAR",
+    currency: "MRU",
     // Patients
     searchPlaceholder: "Rechercher par nom, dossier ou tél...",
     addPatient: "Ajouter Patient",

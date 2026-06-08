@@ -1,16 +1,17 @@
 const mongoose = require('mongoose');
 
 const settingSchema = new mongoose.Schema({
-  clinicName: { type: String, required: true, default: 'CliniMind Center' },
+  clinicName: { type: String, required: true, default: '' },
   clinicAddress: { type: String, required: true, default: 'Nouakchott, Mauritanie' },
   clinicPhone: { type: String, required: true, default: '+22236123456' },
   clinicEmail: { type: String, required: true, default: 'contact@clinimind.com' },
   logoUrl: { type: String, default: '' },
   defaultConsultationFee: { type: Number, required: true, default: 500 },
   smtpConfig: {
-    host: { type: String, default: 'smtp.gmail.com' },
-    port: { type: Number, default: 587 }
-    // user and pass removed — read from SMTP_USER / SMTP_PASS env vars at send time
+    host: { type: String, default: '' },
+    port: { type: Number, default: 587 },
+    smtpUser: { type: String, default: '' },
+    smtpPass: { type: String, default: '' }
   },
   criticalThresholds: {
     type: Map,

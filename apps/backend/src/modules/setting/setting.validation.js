@@ -2,8 +2,9 @@ const { z } = require('zod');
 
 const smtpConfigSchema = z.object({
   host: z.string().optional(),
-  port: z.number().int().optional()
-  // user and pass removed — credentials sourced from env vars only
+  port: z.number().int().optional(),
+  smtpUser: z.string().optional(),
+  smtpPass: z.string().optional()
 });
 
 const updateSettingSchema = z.object({

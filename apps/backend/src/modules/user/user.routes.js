@@ -27,12 +27,14 @@ const updateUserSchema = z.object({
 });
 
 router.use(requireAuth);
-router.use(requireRoles(['director']));
 
-router.post('/', validate(createUserSchema), userController.createUser);
+// GET endpoints – accessible by all staff roles (needed for doctor selection in forms)
 router.get('/', userController.getUsers);
 router.get('/:id', userController.getUserById);
-router.put('/:id', validate(updateUserSchema), userController.updateUser);
-router.delete('/:id', userController.deleteUser);
+
+// Mutations – director only
+router.post('/', requireRoles(['director']), validate(createUserSchema), userController.createUser);
+router.put('/:id', requireRoles(['director']), validate(updateUserSchema), userController.updateUser);
+router.delete('/:id', requireRoles(['director']), userController.deleteUser);
 
 module.exports = router;

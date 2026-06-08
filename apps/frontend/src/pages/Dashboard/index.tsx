@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../hooks/useNotifications';
 import { t } from '../../services/localization';
-import { api, Invoice, LabRequest, Appointment, Patient } from '../../services/api';
+import { api, Appointment, Invoice, Patient } from '../../services/api';
 
 interface TrendItem {
   date: string;
@@ -45,27 +45,34 @@ export default function Dashboard() {
       return;
     }
 
-    api.getPatients().then((res) => {
-      if (res.success && res.data) setTotalPatients(res.data.length);
-    });
+    const role = user?.role;
 
-    api.getAppointments().then((res) => {
-      if (res.success && res.data) setTodayVisitors(res.data.length);
-    });
-
-    api.getInvoices().then((res) => {
-      if (res.success && res.data) {
-        const total = res.data.reduce((sum: number, inv: Invoice) => sum + inv.paidAmount, 0);
-        setTotalRevenue(total);
-      }
-    });
-
-    api.getLabRequests().then((res) => {
-      if (res.success && res.data) {
-        const pending = res.data.filter((req: LabRequest) => req.status !== 'completed').length;
-        setPendingLabsCount(pending);
-      }
-    });
+    if (role === 'director') {
+      api.getDirectorDashboard().then((res) => {
+        if (res.success && res.data) {
+          setTotalPatients(res.data.stats.totalPatients);
+          setTodayVisitors(res.data.stats.todayAppointments);
+          setPendingLabsCount(res.data.stats.criticalResultsUnread);
+          setTotalRevenue(res.data.stats.todayRevenue);
+        }
+      });
+    } else if (role === 'doctor') {
+      api.getDoctorDashboard().then((res) => {
+        if (res.success && res.data) {
+          setTodayVisitors(res.data.stats.todayAppointments);
+          setPendingLabsCount(res.data.stats.pendingLabResults);
+        }
+      });
+      api.getPatients().then((res) => {
+        if (res.success && res.data) setTotalPatients(res.data.length);
+      });
+      api.getInvoices().then((res) => {
+        if (res.success && res.data) {
+          const total = res.data.reduce((sum, inv) => sum + inv.paidAmount, 0);
+          setTotalRevenue(total);
+        }
+      });
+    }
 
     api.getRevenueTrends(7).then((res) => {
       if (res.success && res.data) {
@@ -73,7 +80,7 @@ export default function Dashboard() {
         setTrendTotal(res.data.totalRevenue || 0);
       }
     }).catch(() => {});
-  }, [isReceptionist]);
+  }, [isReceptionist, user?.role]);
 
   const [quickSearch, setQuickSearch] = useState('');
   const [quickResults, setQuickResults] = useState<Patient[]>([]);
