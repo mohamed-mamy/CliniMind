@@ -20,7 +20,7 @@ import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 
 export default function App() {
-  const { isLoggedIn, user, lang, setLang, darkMode, setDarkMode, setAuth } = useAuth();
+  const { isLoggedIn, user, lang, setLang, darkMode, setDarkMode, setAuth, isValidating } = useAuth();
   const { notifications, clearAll } = useNotifications();
 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -155,6 +155,20 @@ export default function App() {
     ];
 
     return allTabs.filter(tab => tab.roles.includes(role));
+  }
+
+  // Show loading screen while validating token on startup
+  if (isValidating) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-8 w-8 rounded-full border-4 border-sky-500 border-t-transparent animate-spin" />
+          <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+            {lang === 'ar' ? 'جارٍ التحقق...' : lang === 'en' ? 'Verifying...' : 'Vérification...'}
+          </span>
+        </div>
+      </div>
+    );
   }
 
   // If not logged in, render the standalone Login screen
