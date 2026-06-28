@@ -7,6 +7,7 @@ import { api } from './services/api';
 import { notifStore } from './store/notifStore';
 import { authStore } from './store/authStore';
 import { t, LangKey } from './services/localization';
+import InstallAppButton from './components/InstallAppButton';
 
 // Import Pages
 import Login from './pages/Login';
@@ -324,6 +325,8 @@ export default function App() {
 
             {/* Top Bar Options */}
             <div className="flex items-center gap-3">
+              <InstallAppButton />
+
               {/* Theme Toggle */}
               <button
                 onClick={toggleDarkMode}

@@ -1,6 +1,17 @@
 import axios, { AxiosRequestHeaders } from 'axios';
 import { authStore } from '../store/authStore';
 
+axios.interceptors.response.use(
+  response => response,
+  error => {
+    if (error?.response?.status === 401 && authStore.getAuth()) {
+      authStore.setAuth(null);
+    }
+
+    return Promise.reject(error);
+  },
+);
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T;
