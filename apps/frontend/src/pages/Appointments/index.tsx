@@ -82,6 +82,10 @@ export default function Appointments() {
   const cycleStatus = async (appt: Appointment) => {
     const idx = STATUS_CYCLE.indexOf(appt.status);
     const nextStatus = idx === -1 ? STATUS_CYCLE[0] : STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
+    updateStatus(appt, nextStatus);
+  };
+
+  const updateStatus = async (appt: Appointment, nextStatus: Appointment['status']) => {
     try {
       const res = await api.updateAppointmentStatus(appt.id, nextStatus);
       if (res.success) {
@@ -111,11 +115,11 @@ export default function Appointments() {
   return (
     <div className="animate-fadeIn space-y-5">
       {/* Header */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         {isEditable && (
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 rounded-2xl bg-sky-800 text-white px-4 py-2.5 text-xs font-bold shadow-md hover:bg-sky-700 active:scale-95 dark:bg-sky-600 dark:hover:bg-sky-500 cursor-pointer"
+            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-sky-800 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-sky-700 active:scale-95 dark:bg-sky-600 dark:hover:bg-sky-500 cursor-pointer sm:w-auto"
           >
             <svg className="h-4.5 w-4.5 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
               <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
@@ -128,18 +132,18 @@ export default function Appointments() {
           type="date"
           value={selectedDate}
           onChange={(e) => setSelectedDate(e.target.value)}
-          className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-sky-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+          className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-sky-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 sm:w-auto"
         />
 
         <button
           onClick={goToday}
-          className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-sky-700 hover:bg-sky-50 dark:border-slate-800 dark:bg-slate-900 dark:text-sky-400 cursor-pointer"
+          className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-sky-700 hover:bg-sky-50 dark:border-slate-800 dark:bg-slate-900 dark:text-sky-400 cursor-pointer sm:w-auto"
         >
           {lang === 'ar' ? 'اليوم' : lang === 'fr' ? "Aujourd'hui" : 'Today'}
         </button>
 
         {/* Doctor selector */}
-        <div className="flex items-center gap-2">
+        <div className="flex w-full items-center gap-2 sm:w-auto">
           {user?.role === 'doctor' ? (
             <span className="rounded-2xl bg-teal-50 px-4 py-2.5 text-xs font-bold text-teal-700 dark:bg-teal-950/20 dark:text-teal-400">
               {user.fullName}
@@ -148,7 +152,7 @@ export default function Appointments() {
             <select
               value={selectedDoctorId}
               onChange={(e) => setSelectedDoctorId(e.target.value)}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-sky-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+              className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-sky-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
             >
               <option value="">{lang === 'ar' ? 'كل الأطباء' : lang === 'fr' ? 'Tous les médecins' : 'All doctors'}</option>
               {doctors.map(d => (
@@ -158,7 +162,7 @@ export default function Appointments() {
           )}
         </div>
 
-        <div className="mr-auto text-end">
+        <div className="w-full text-start sm:mr-auto sm:w-auto sm:text-end">
           <h2 className="text-lg font-black text-slate-800 dark:text-slate-100">
             {formatDateDisplay(selectedDate, lang)}
           </h2>
@@ -198,9 +202,71 @@ export default function Appointments() {
         </div>
       )}
 
+      {/* Mobile Agenda Cards */}
+      {!loading && !error && appointments.length > 0 && (
+        <div className="space-y-3 md:hidden">
+          {appointments.map((appt) => (
+            <div key={appt.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 text-start">
+                  <h3 className="truncate text-sm font-black text-slate-850 dark:text-slate-100">{appt.patientName}</h3>
+                  <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    {appt.patientPhone || (lang === 'ar' ? 'رقم الهاتف غير متاح' : lang === 'fr' ? 'Téléphone non disponible' : 'Phone unavailable')}
+                  </p>
+                </div>
+                <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black ${STATUS_COLORS[appt.status]}`}>
+                  {statusLabels[appt.status]}
+                </span>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                <div className="rounded-2xl bg-slate-50 p-3 dark:bg-slate-850">
+                  <span className="block text-slate-400">{lang === 'ar' ? 'الطبيب' : lang === 'fr' ? 'Médecin' : 'Doctor'}</span>
+                  <span className="mt-1 block font-bold text-slate-700 dark:text-slate-200">{appt.doctorName || currentDoctorName}</span>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-3 dark:bg-slate-850">
+                  <span className="block text-slate-400">{lang === 'ar' ? 'الساعة' : lang === 'fr' ? 'Heure' : 'Time'}</span>
+                  <span className="mt-1 block font-mono font-bold text-sky-700 dark:text-sky-300">{appt.timeSlot}</span>
+                </div>
+                <div className="col-span-2 rounded-2xl bg-slate-50 p-3 dark:bg-slate-850">
+                  <span className="block text-slate-400">{lang === 'ar' ? 'التاريخ' : lang === 'fr' ? 'Date' : 'Date'}</span>
+                  <span className="mt-1 block font-bold text-slate-700 dark:text-slate-200">{formatDateDisplay(appt.date || selectedDate, lang)}</span>
+                </div>
+              </div>
+
+              {canChangeStatus && (
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => updateStatus(appt, 'confirmed')}
+                    className="min-h-11 rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700 transition-colors hover:bg-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-300"
+                  >
+                    حاضر
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateStatus(appt, 'cancelled')}
+                    className="min-h-11 rounded-2xl bg-red-50 px-3 py-2 text-xs font-black text-red-700 transition-colors hover:bg-red-100 dark:bg-red-950/20 dark:text-red-300"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => cycleStatus(appt)}
+                    className="min-h-11 rounded-2xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200"
+                  >
+                    تعديل
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Timeline Agenda */}
       {!loading && !error && appointments.length > 0 && (
-        <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="hidden rounded-3xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:block">
           <div className="space-y-1">
             {HOURS.map((hour) => {
               const hourNum = parseInt(hour, 10);
@@ -351,8 +417,8 @@ function AddAppointmentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 animate-fadeIn my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+      <div className="my-4 w-full max-w-lg rounded-3xl bg-white p-4 shadow-2xl dark:bg-slate-900 animate-fadeIn sm:my-8 sm:p-6">
         <div className="flex items-center justify-between mb-5">
           <button
             onClick={onClose}
@@ -407,7 +473,7 @@ function AddAppointmentModal({
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="text-[11px] font-bold text-slate-400 uppercase">{activeTrans.appointmentDate}</label>
               <input
@@ -430,7 +496,7 @@ function AddAppointmentModal({
 
           <div>
             <label className="text-[11px] font-bold text-slate-400 uppercase">{activeTrans.appointmentType}</label>
-            <div className="mt-1 flex gap-2">
+            <div className="mt-1 grid grid-cols-2 gap-2 sm:flex">
               {(['normal', 'followup', 'emergency', 'checkup'] as const).map(t => (
                 <button
                   key={t}

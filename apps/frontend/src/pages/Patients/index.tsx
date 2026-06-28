@@ -103,13 +103,13 @@ export default function Patients() {
   );
 
   return (
-    <div className="animate-fadeIn space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="animate-fadeIn space-y-5 sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {/* Add Patient Button */}
         {(user?.role === 'receptionist' || isDirector) && (
           <button
             onClick={() => setShowAddPatientModal(true)}
-            className="flex items-center gap-2 rounded-2xl bg-sky-800 text-white px-4 py-2.5 text-xs font-bold shadow-md hover:bg-sky-700 active:scale-95 dark:bg-sky-600 dark:hover:bg-sky-500 cursor-pointer"
+            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-sky-800 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-sky-700 active:scale-95 dark:bg-sky-600 dark:hover:bg-sky-500 cursor-pointer sm:w-auto"
           >
             <svg className="h-4.5 w-4.5 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
               <line x1="12" y1="5" x2="12" y2="19" />
@@ -118,7 +118,7 @@ export default function Patients() {
             <span>{activeTrans.addPatient}</span>
           </button>
         )}
-        <h2 className="text-2xl font-black text-slate-800 dark:text-slate-100">{activeTrans.tabPatients}</h2>
+        <h2 className="order-first text-xl font-black text-slate-800 dark:text-slate-100 sm:order-none sm:text-2xl">{activeTrans.tabPatients}</h2>
       </div>
 
       {/* Main Grid: Left is Details panel (if selected), Right/Full is list */}
@@ -126,7 +126,7 @@ export default function Patients() {
         {/* Patients List */}
         <div className={`space-y-4 lg:col-span-2`}>
           {/* Search input with search icon */}
-          <div className="relative max-w-md text-start">
+          <div className="relative w-full max-w-md text-start">
             <input
               type="text"
               placeholder={activeTrans.searchPlaceholder}
@@ -355,7 +355,7 @@ export default function Patients() {
       {/* POPUP MODAL: ADD PATIENT */}
       {showAddPatientModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 animate-fadeIn my-8 text-start">
+          <div className="my-4 w-full max-w-lg rounded-3xl bg-white p-4 shadow-2xl dark:bg-slate-900 animate-fadeIn sm:my-8 sm:p-6 text-start">
             <div className="flex items-center justify-between mb-5">
               <button
                 onClick={() => setShowAddPatientModal(false)}
@@ -394,7 +394,7 @@ export default function Patients() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className="text-[11px] font-bold text-slate-400 uppercase">{activeTrans.ageCategoryLabel}</label>
                   <select
@@ -449,7 +449,7 @@ export default function Patients() {
                     {lang === 'ar' ? 'بيانات الملف الطبي (للطبيب/المدير):' : 'Medical File Inputs:'}
                   </h4>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <label className="text-[11px] font-bold text-slate-400 uppercase">
                         {lang === 'ar' ? 'فصيلة الدم' : 'Blood Group'}

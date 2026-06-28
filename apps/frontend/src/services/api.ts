@@ -41,6 +41,7 @@ export interface Appointment {
   id: string;
   patientId: string;
   patientName: string;
+  patientPhone?: string;
   doctorId: string;
   doctorName: string;
   date: string;
@@ -126,6 +127,7 @@ function mapAppointment(a: any): Appointment {
     id: a._id,
     patientId: a.patientId?._id || a.patientId,
     patientName: a.patientName || a.patientId?.fullName || '',
+    patientPhone: a.patientPhone || a.patientId?.phonePrimary,
     doctorId: a.doctorId?._id || a.doctorId,
     doctorName: a.doctorName || a.doctorId?.fullName || '',
     date: a.date,

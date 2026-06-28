@@ -120,10 +120,10 @@ export default function Dashboard() {
         </h2>
 
         {/* Quick Actions */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-center">
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('app-navigate', { detail: 'patients' }))}
-            className="flex items-center gap-2 rounded-2xl bg-sky-800 text-white px-4 py-2.5 text-xs font-bold shadow-md hover:bg-sky-700 active:scale-95 dark:bg-sky-600 cursor-pointer"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-sky-800 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-sky-700 active:scale-95 dark:bg-sky-600 cursor-pointer"
           >
             <svg className="h-4.5 w-4.5 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
               <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
@@ -132,7 +132,7 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('app-navigate', { detail: 'appointments' }))}
-            className="flex items-center gap-2 rounded-2xl bg-indigo-700 text-white px-4 py-2.5 text-xs font-bold shadow-md hover:bg-indigo-600 active:scale-95 dark:bg-indigo-600 cursor-pointer"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-indigo-700 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-indigo-600 active:scale-95 dark:bg-indigo-600 cursor-pointer"
           >
             <svg className="h-4.5 w-4.5 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
@@ -143,7 +143,7 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('app-navigate', { detail: 'billing' }))}
-            className="flex items-center gap-2 rounded-2xl bg-emerald-700 text-white px-4 py-2.5 text-xs font-bold shadow-md hover:bg-emerald-600 active:scale-95 dark:bg-emerald-600 cursor-pointer"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-emerald-600 active:scale-95 dark:bg-emerald-600 cursor-pointer"
           >
             <svg className="h-4.5 w-4.5 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
               <rect x="2" y="4" width="20" height="16" rx="2" />
@@ -154,7 +154,7 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Patient Search */}
-        <div className="relative max-w-md">
+        <div className="relative w-full max-w-md">
           <input
             type="text"
             value={quickSearch}
@@ -261,7 +261,7 @@ export default function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
             <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-4">
               {lang === 'ar' ? 'مواعيد اليوم' : lang === 'en' ? "Today's Agenda" : 'Agenda du jour'}
             </h3>
@@ -272,10 +272,10 @@ export default function Dashboard() {
             ) : (
               <div className="space-y-2 max-h-80 overflow-y-auto">
                 {recpData.todayAgenda.map((appt) => (
-                  <div key={appt.id} className="flex items-center justify-between rounded-2xl bg-slate-50 p-3 text-xs dark:bg-slate-850">
-                    <div className="flex items-center gap-3">
+                  <div key={appt.id} className="flex flex-col gap-2 rounded-2xl bg-slate-50 p-3 text-xs dark:bg-slate-850 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-center gap-3">
                       <span className="font-mono font-bold text-slate-500">{appt.timeSlot}</span>
-                      <span className="font-bold text-slate-800 dark:text-slate-100">{appt.patientName}</span>
+                      <span className="truncate font-bold text-slate-800 dark:text-slate-100">{appt.patientName}</span>
                     </div>
                     <span className="text-slate-400">{appt.doctorName}</span>
                   </div>

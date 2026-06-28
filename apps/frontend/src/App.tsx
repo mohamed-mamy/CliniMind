@@ -187,7 +187,7 @@ export default function App() {
       <div className="flex-1 w-full flex h-screen overflow-hidden">
         
         {/* SIDEBAR NAVIGATION */}
-        <aside className="w-64 bg-white border-slate-100 flex flex-col justify-between shrink-0 z-20 shadow-sm border-e dark:border-slate-800 dark:bg-slate-900 transition-colors">
+        <aside className="hidden w-64 bg-white border-slate-100 flex-col justify-between shrink-0 z-20 shadow-sm border-e dark:border-slate-800 dark:bg-slate-900 transition-colors md:flex">
           <div className="flex flex-col overflow-y-auto">
             {/* Profile Card Section */}
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 text-center flex flex-col items-center gap-3">
@@ -316,21 +316,21 @@ export default function App() {
         <div className="flex-1 flex flex-col overflow-hidden">
           
           {/* Top Toolbar / Dashboard Header */}
-          <header className="h-16 shrink-0 bg-white border-b border-slate-100 px-8 flex items-center justify-between dark:border-slate-800 dark:bg-slate-900 transition-colors z-10">
-            <div className="flex items-center gap-4">
-              <span className="text-xl font-black text-sky-850 dark:text-sky-400">{clinicName || (lang === 'ar' ? 'العيادة' : 'Clinic')}</span>
+          <header className="min-h-16 shrink-0 bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between gap-3 dark:border-slate-800 dark:bg-slate-900 transition-colors z-10 sm:px-6 lg:px-8">
+            <div className="min-w-0 flex items-center gap-3">
+              <span className="truncate text-base font-black text-sky-850 dark:text-sky-400 sm:text-xl">{clinicName || (lang === 'ar' ? 'العيادة' : 'Clinic')}</span>
               <span className="text-xs font-semibold text-slate-400 hidden md:inline">|</span>
               <span className="text-xs font-bold text-slate-500 hidden md:inline">{timeStr}</span>
             </div>
 
             {/* Top Bar Options */}
-            <div className="flex items-center gap-3">
+            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
               <InstallAppButton />
 
               {/* Theme Toggle */}
               <button
                 onClick={toggleDarkMode}
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 text-slate-700 transition-all hover:bg-slate-100 active:scale-95 dark:bg-slate-850 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer"
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-700 transition-all hover:bg-slate-100 active:scale-95 dark:bg-slate-850 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer"
                 title="تغيير المظهر"
               >
                 {darkMode ? (
@@ -349,7 +349,7 @@ export default function App() {
               <div className="relative">
                 <button
                   onClick={() => setShowLangDropdown(!showLangDropdown)}
-                  className="flex h-9 px-3 items-center gap-1.5 rounded-xl bg-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all dark:bg-slate-850 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer"
+                  className="flex h-10 px-3 items-center gap-1.5 rounded-xl bg-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all dark:bg-slate-850 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer"
                 >
                   <svg className="h-4.5 w-4.5 fill-none stroke-current stroke-2 text-slate-500" viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="10" />
@@ -400,7 +400,7 @@ export default function App() {
                       setUnreadCount(0);
                     }
                   }}
-                  className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 text-slate-700 transition-all hover:bg-slate-100 active:scale-95 dark:bg-slate-850 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer"
+                  className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-700 transition-all hover:bg-slate-100 active:scale-95 dark:bg-slate-850 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer"
                 >
                   <svg className="h-4.5 w-4.5 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
                     <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9m4.73 13a3 3 0 0 0 5.54 0" />
@@ -528,7 +528,7 @@ export default function App() {
           </header>
 
           {/* Content viewport area */}
-          <div className="flex-1 overflow-y-auto p-8 bg-slate-50 dark:bg-slate-950">
+          <div className="flex-1 overflow-y-auto bg-slate-50 p-4 pb-24 dark:bg-slate-950 sm:p-6 md:pb-6 lg:p-8">
             {activeTab === 'dashboard' && <Dashboard />}
             {activeTab === 'patients' && <Patients />}
             {activeTab === 'appointments' && <Appointments />}
@@ -539,6 +539,28 @@ export default function App() {
             {activeTab === 'settings' && <Settings />}
           </div>
         </div>
+
+        <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-100 bg-white/95 px-2 py-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 md:hidden">
+          <div className="flex gap-2 overflow-x-auto">
+            {allowedTabs.map((tab) => {
+              const isActive = activeTab === tab.id;
+
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`min-h-12 min-w-[5.5rem] flex-1 rounded-2xl px-3 py-2 text-[11px] font-black transition-colors ${
+                    isActive
+                      ? 'bg-sky-50 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300'
+                      : 'text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <span className="block truncate">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
       </div>
     </div>
   );
